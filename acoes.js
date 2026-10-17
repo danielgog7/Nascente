@@ -1,151 +1,20 @@
 'use strict';
 /* Nascente — IA (o Mestre), fotos, sincronização, ações, fundo animado e arranque. */
 
-/* ---------- IA (Gemini, chave do utilizador) ---------- */
-const API = 'https://generativelanguage.googleapis.com/v1beta/';
-let iaPedido = null, iaPensarSempre = false, iaEsperaCancelada = false;
-function cancelarIA(){ iaEsperaCancelada = true; if (iaPedido){ iaPedido.cancelado = true; iaPedido.ctl.abort(); } }
-// Limites do plano gratuito: são por projeto e por modelo (partilhados com a Forja e a Garfada se usarem a mesma chave) e repõem-se à meia-noite do Pacífico.
-class ErroLimite extends Error {}
-const diaPacifico = () => new Date().toLocaleDateString('en-CA', {timeZone: 'America/Los_Angeles'});
-function horaReset(){
-  const agora = new Date(), la = new Date(agora.toLocaleString('en-US', {timeZone: 'America/Los_Angeles'})), meia = new Date(la); meia.setHours(24, 0, 0, 0);
-  return new Date(+agora + (meia - la)).toLocaleTimeString('pt-PT', {hour: '2-digit', minute: '2-digit'});
-}
-function modelosCandidatos(){
-  const hoje = diaPacifico(), esg = cfg.esgotados || {};
-  return [...(cfg.modelos || []), cfg.modelo, 'gemini-flash-latest', 'gemini-flash-lite-latest'].filter((m, i, l) => m && l.indexOf(m) === i && esg[m] !== hoje && !(cfg.incompat || {})[m]);
-}
-function limiteInfo(j){
-  const det = (j.error && j.error.details) || [], ids = det.filter(d => /QuotaFailure/.test(d['@type'] || '')).flatMap(d => (d.violations || []).map(v => v.quotaId || '')).join(' ');
-  const ri = det.find(d => /RetryInfo/.test(d['@type'] || '')), espera = ri ? parseFloat(ri.retryDelay) || 30 : 30;
-  const porDia = /PerDay/i.test(ids) || (!/PerMinute/i.test(ids) && espera > 90);
-  return {porDia, espera: Math.min(Math.max(espera, 5), 65)};
-}
+/* ---------- IA: módulo comum às apps (ia-comum.js) — Gemini com troca de modelo e Groq de reserva ---------- */
+const ErroLimite = IA.ErroLimite, horaReset = IA.horaReset;
+function cancelarIA(){ IA.cancelar(); }
 function iaAviso(txt){ const el = document.querySelector('.a-meditar p') || document.querySelector('#aPensar p'); if (el) el.textContent = txt; }
-async function esperarIA(seg){
-  iaEsperaCancelada = false;
-  for (let s = Math.ceil(seg); s > 0; s--){ if (iaEsperaCancelada) throw new Error('Cancelado.'); iaAviso(`Muitos pedidos seguidos. O Mestre respira… ${s} s`); await new Promise(r => setTimeout(r, 1000)); }
-}
-async function geminiDireto(texto, {json = true, imagens = [], espera = 60000} = {}){
-  if (!cfg.chave) throw new Error('Falta a chave do Gemini no Perfil.');
-  const gc = json ? {temperature: .3, responseMimeType: 'application/json'} : {temperature: .6};
-  const parts = [{text: texto}, ...imagens.map(d => ({inline_data: {mime_type: 'image/jpeg', data: String(d).split(',')[1]}}))];
-  const pedir = async (modelo, pensar) => {
-    const ped = iaPedido = {ctl: new AbortController(), cancelado: false}, t = setTimeout(() => ped.ctl.abort(), espera);
-    try {
-      return await fetch(`${API}models/${encodeURIComponent(modelo)}:generateContent`, {method: 'POST', signal: ped.ctl.signal,
-        headers: {'Content-Type': 'application/json', 'x-goog-api-key': cfg.chave},
-        body: JSON.stringify({contents: [{role: 'user', parts}], generationConfig: pensar ? gc : Object.assign({thinkingConfig: {thinkingBudget: 0}}, gc)})});
-    } catch(e){
-      if (ped.cancelado) throw new Error('Cancelado.');
-      if (ped.ctl.signal.aborted) throw new Error('O Mestre demorou demasiado a responder. Tenta outra vez.');
-      throw new Error('Sem ligação à internet.');
-    } finally { clearTimeout(t); if (iaPedido === ped) iaPedido = null; }
-  };
-  if (!(cfg.modelos || []).length) try { await listarModelos(); } catch(e){}
-  const candidatos = modelosCandidatos();
-  let esgotou = false, ultimoErro = '';
-  for (let i = 0, esperou = false; i < candidatos.length; i++){
-    const modelo = String(candidatos[i]).replace(/^models\//, ''), semPensar = iaPensarSempre || !/flash/i.test(modelo);
-    let r = await pedir(modelo, semPensar), j = await r.json().catch(() => ({}));
-    // Alguns modelos não aceitam desligar o "pensamento": repete sem essa opção.
-    if (r.status === 400 && !semPensar){
-      const msg400 = (j.error && j.error.message) || '';
-      r = await pedir(modelo, true); j = await r.json().catch(() => ({}));
-      if (r.ok && /think/i.test(msg400)) iaPensarSempre = true;
-    }
-    if (r.status === 429){
-      const info = limiteInfo(j);
-      if (!info.porDia && !esperou){ esperou = true; await esperarIA(info.espera); i--; continue; }
-      cfg.esgotados = Object.assign({}, cfg.esgotados, {[modelo]: diaPacifico()}); guardarCfg();
-      esgotou = true; iaAviso('Este modelo esgotou por hoje. A tentar outro…'); esperou = false; continue;
-    }
-    if (!r.ok){
-      const msg = (j.error && j.error.message) || String(r.status);
-      if (r.status === 401 || r.status === 403 || /api key/i.test(msg)) throw new Error('Chave do Gemini inválida. Verifica no Perfil.');
-      // Modelo que não serve para este pedido (não aceita imagens, JSON, etc.): fica de lado e tenta-se o seguinte.
-      if (r.status === 400 || r.status === 404){ cfg.incompat = Object.assign({}, cfg.incompat, {[modelo]: 1}); guardarCfg(); }
-      ultimoErro = msg; continue;
-    }
-    if (modelo !== cfg.modelo){ cfg.modelo = modelo; guardarCfg(); }
-    const txt = ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).filter(p => !p.thought).map(p => p.text || '').join('');
-    if (!txt) throw new Error('O Mestre não respondeu. Tenta outra vez.');
-    return txt;
-  }
-  if (!esgotou) throw new Error('Erro do Gemini: ' + (ultimoErro || 'nenhum modelo disponível') + '. No Perfil, toca em "Guardar e testar".');
-  throw new ErroLimite(`O Mestre esgotou as forças de hoje: o limite diário gratuito do Gemini acabou em todos os modelos (é partilhado com as outras apps que usam a mesma chave). Volta às ${horaReset()}.`);
-}
-/* ---------- IA de reserva: Groq (compatível com OpenAI) ---------- */
-const GROQ = 'https://api.groq.com/openai/v1/', GROQ_MODELO = 'qwen/qwen3.8-27b';
-async function groq(texto, {json = true, imagens = [], espera = 60000} = {}){
-  const modelo = cfg.groqModelo || GROQ_MODELO;
-  const content = imagens.length ? [{type: 'text', text: texto}, ...imagens.slice(-3).map(d => ({type: 'image_url', image_url: {url: d}}))] : texto;
-  const pedir = async comJSON => {
-    const ped = iaPedido = {ctl: new AbortController(), cancelado: false}, t = setTimeout(() => ped.ctl.abort(), espera);
-    const corpo = {model: modelo, messages: [{role: 'user', content}], temperature: .3};
-    if (comJSON) corpo.response_format = {type: 'json_object'};
-    try {
-      return await fetch(GROQ + 'chat/completions', {method: 'POST', signal: ped.ctl.signal,
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.groqChave}, body: JSON.stringify(corpo)});
-    } catch(e){
-      if (ped.cancelado) throw new Error('Cancelado.');
-      if (ped.ctl.signal.aborted) throw new Error('A reserva (Groq) demorou demasiado. Tenta outra vez.');
-      throw new Error('Sem ligação à internet.');
-    } finally { clearTimeout(t); if (iaPedido === ped) iaPedido = null; }
-  };
-  let r = await pedir(json), j = await r.json().catch(() => ({}));
-  if (r.status === 400 && json && !/model/i.test((j.error && j.error.message) || '')){ r = await pedir(false); j = await r.json().catch(() => ({})); }
-  if (r.status === 429){
-    const m = String((j.error && j.error.message) || '').match(/try again in\s*(?:(\d+)m)?\s*([\d.]+)\s*s/i), seg = m ? (+m[1] || 0) * 60 + parseFloat(m[2]) : 0;
-    if (seg > 0 && seg <= 65){ await esperarIA(seg + 1); r = await pedir(json); j = await r.json().catch(() => ({})); }
-  }
-  if (!r.ok){
-    const msg = (j.error && j.error.message) || String(r.status);
-    if (r.status === 401) throw new Error('Chave do Groq inválida. Verifica no Perfil.');
-    if (r.status === 429) throw new ErroLimite(`O Gemini e a reserva (Groq) estão sem forças por agora. O Gemini volta às ${horaReset()}.`);
-    if (r.status === 404 || /model/i.test(msg)) throw new Error(`O modelo ${modelo} não está disponível no Groq. Muda-o no Perfil.`);
-    throw new Error('Erro do Groq: ' + msg);
-  }
-  const txt = String((((j.choices || [])[0] || {}).message || {}).content || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-  if (!txt) throw new Error('A reserva não respondeu. Tenta outra vez.');
-  return txt;
-}
-// O Mestre usa o Gemini; se não houver chave, se estiver esgotado ou se falhar, passa para o Groq.
-async function gemini(texto, opts = {}){
-  if (!cfg.chave){ if (cfg.groqChave) return groq(texto, opts); throw new Error('Falta uma chave de IA no Perfil.'); }
-  if (cfg.groqChave && !modelosCandidatos().length) return groq(texto, opts);
-  try { return await geminiDireto(texto, opts); }
-  catch(e){
-    if (!cfg.groqChave || e.message === 'Cancelado.' || /Sem ligação/.test(e.message)) throw e;
-    iaAviso('O Gemini não deu. O Mestre usa a reserva…');
-    return groq(texto, opts);
-  }
-}
-async function testarGroq(){
-  let r; try { r = await fetch(GROQ + 'models', {headers: {'Authorization': 'Bearer ' + cfg.groqChave}}); } catch(e){ throw new Error('Sem ligação à internet.'); }
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(r.status === 401 ? 'Chave inválida.' : 'Erro: ' + ((j.error && j.error.message) || r.status));
-  const ids = (j.data || []).map(m => m.id), modelo = cfg.groqModelo || GROQ_MODELO;
-  return ids.includes(modelo) ? `Ligado. Modelo: ${modelo}` : `Chave válida, mas o modelo ${modelo} não existe. Disponíveis: ${ids.filter(i => !/whisper|tts|guard|embed/i.test(i)).slice(0, 6).join(', ')}`;
-}
+const gemini = (texto, {json = true, imagens = [], espera = 60000} = {}) => IA.pedir({texto, imagens, json, espera, chave: cfg.chave, modelo: cfg.modelo, aviso: iaAviso});
 function lerJSON(txt){
   const s = String(txt).replace(/```(?:json)?/gi, ''), a = s.indexOf('{'), b = s.lastIndexOf('}');
   if (a < 0 || b < a) throw new Error('Resposta da IA em formato inválido.');
   return JSON.parse(s.slice(a, b + 1));
 }
 async function listarModelos(){
-  let r;
-  try { r = await fetch(API + 'models?pageSize=1000', {headers: {'x-goog-api-key': cfg.chave}}); } catch(e){ throw new Error('Sem ligação à internet.'); }
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error([400, 401, 403].includes(r.status) ? 'Chave inválida.' : 'Erro: ' + ((j.error && j.error.message) || r.status));
-  const pts = n => (/latest/.test(n) ? 100 : 0) - (/lite/.test(n) ? 10 : 0) - (/preview/.test(n) ? 5 : 0) + (parseFloat((n.match(/\d+(\.\d+)?/) || [])[0]) || 0);
-  const nomes = (j.models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent')).map(m => m.name.replace(/^models\//, ''))
-    .filter(n => /flash/i.test(n) && !/(image|tts|audio|live|embed|exp)/i.test(n)).sort((a, b) => pts(b) - pts(a));
-  cfg.modelos = nomes.slice(0, 8); cfg.incompat = {};
+  const nomes = await IA.listarModelos(cfg.chave);
   if (nomes.length && !nomes.includes(cfg.modelo)) cfg.modelo = nomes[0];
-  guardarCfg();
-  return nomes;
+  guardarCfg(); return nomes;
 }
 // As outras apps (Forja, Garfada, Mirante) vivem no mesmo endereço: se já houver lá uma chave do Gemini, oferece-se para a usar.
 function chaveDeOutraApp(){
@@ -671,14 +540,6 @@ const ACOES = {
   pCapa(el){ cfg.capa = cfg.capa === false; guardarCfg(); el.classList.toggle('on'); },
   verCapa: mostrarCapa,
   usarChaveAlheia(){ cfg.chave = chaveDeOutraApp(); guardarCfg(); rPerfil(); ACOES.testarIA(); },
-  verGroq(){ const i = $('#pGroq'); i.type = i.type === 'password' ? 'text' : 'password'; },
-  async testarGroq(){
-    const st = $('#groqTeste'); cfg.groqChave = $('#pGroq').value.trim(); cfg.groqModelo = $('#pGroqModelo').value.trim() || GROQ_MODELO; guardarCfg();
-    if (!cfg.groqChave){ if (st) st.textContent = 'Sem chave.'; return; }
-    if (st) st.textContent = 'A testar…';
-    try { const t = await testarGroq(); if (st) st.textContent = t; if (/^Ligado/.test(t)) toast('Reserva pronta: se o Gemini esgotar, o Mestre usa o Groq.'); }
-    catch(e){ if (st) st.textContent = e.message; }
-  },
   verChave(){ const i = $('#pChave'); i.type = i.type === 'password' ? 'text' : 'password'; },
   async testarIA(){
     const i = $('#pChave'), st = $('#iaTeste'); if (i) cfg.chave = i.value.trim(); guardarCfg();
@@ -778,6 +639,7 @@ document.addEventListener('visibilitychange', () => {
 
 /* ---------- Arranque ---------- */
 (async function iniciar(){
+  if (cfg.groqChave && !IA.temGroq()) IA.definirGroq(cfg.groqChave, cfg.groqModelo);
   await carregarFotos();
   qiIniciar();
   const q = new URLSearchParams(location.search);

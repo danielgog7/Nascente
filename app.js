@@ -134,7 +134,7 @@ function mdLeve(txt){
   if (lista) out.push('</ul>');
   return out.join('');
 }
-const temIA = () => !!(cfg.chave || cfg.groqChave);
+const temIA = () => !!(cfg.chave || IA.temGroq());
 const procurarURL = q => 'https://www.google.com/search?q=' + encodeURIComponent(q + ' comprar preço Portugal');
 
 /* ---------- Contexto da rotina ---------- */
@@ -438,11 +438,7 @@ function rPerfil(){
       ${chaveAlheia ? `<div class="alerta info">${IC.info}<div class="cresce">Encontrei a chave que já usas noutra app tua (Forja ou Garfada).<div style="margin-top:6px"><button class="btn peq-btn" data-acao="usarChaveAlheia">Usar a mesma chave</button></div></div></div>` : ''}
       <label class="campo">Chave do Gemini<div class="linha"><input type="password" id="pChave" value="${esc(cfg.chave)}" placeholder="Cola aqui a chave" autocomplete="off"><button class="btn icone" data-acao="verChave" aria-label="Ver">${IC.lupa}</button></div></label>
       <div class="linha"><button class="btn jade" data-acao="testarIA">Guardar e testar</button><span class="suave mini cresce" id="iaTeste">${temIA() ? 'Modelo: ' + esc(cfg.modelo) : ''}</span></div></div>
-    <div class="placa col"><h2>IA de reserva (Groq)</h2>
-      <p class="suave peq" style="margin:0">Quando o Gemini esgota o limite do dia, o Mestre passa para o Groq, outra IA gratuita que também lê fotos. Também funciona sozinha, sem o Gemini. Para criar a chave: abre <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>, entra com a conta Google ou GitHub, toca em "Create API Key" e cola-a aqui.</p>
-      <label class="campo">Chave do Groq<div class="linha"><input type="password" id="pGroq" value="${esc(cfg.groqChave || '')}" placeholder="gsk_…" autocomplete="off"><button class="btn icone" data-acao="verGroq" aria-label="Ver">${IC.lupa}</button></div></label>
-      <label class="campo">Modelo (tem de aceitar imagens)<input type="text" id="pGroqModelo" value="${esc(cfg.groqModelo || GROQ_MODELO)}" autocomplete="off"></label>
-      <div class="linha"><button class="btn jade" data-acao="testarGroq">Guardar e testar</button><span class="suave mini cresce" id="groqTeste">${cfg.groqChave ? 'Reserva pronta.' : ''}</span></div></div>
+    <div class="placa col"><h2>IA de reserva (Groq)</h2>${IA.htmlGroq({sub: 'suave peq', pri: 'btn jade'})}</div>
     <details class="placa col"><summary><h2 style="display:inline">Sincronização entre dispositivos</h2> <span class="suave peq">(opcional)</span></summary>
       <div class="col" style="margin-top:12px"><p class="suave peq" style="margin:0">Guarda os dados num repositório privado teu no GitHub, para teres o mesmo no telemóvel e no PC. Cria um repositório privado (por exemplo, nascente-dados) e um token "fine-grained" com permissão Contents: Read and write só nesse repositório. As fotos dos frascos ficam só em cada dispositivo.</p>
       <label class="campo">Dono (utilizador GitHub)<input type="text" id="gDono" value="${esc(gh.dono)}" autocomplete="off"></label>

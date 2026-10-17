@@ -134,6 +134,7 @@ function mdLeve(txt){
   if (lista) out.push('</ul>');
   return out.join('');
 }
+const temIA = () => !!(cfg.chave || cfg.groqChave);
 const procurarURL = q => 'https://www.google.com/search?q=' + encodeURIComponent(q + ' comprar preço Portugal');
 
 /* ---------- Contexto da rotina ---------- */
@@ -280,7 +281,7 @@ function rFrascos(){
   const porLer = produtos.filter(p => p.porLer && !p.fim);
   if (porLer.length) html += `<div class="placa col"><h2>Por ler <span class="suave peq">(${porLer.length})</span></h2><p class="suave peq" style="margin:0">O Mestre ainda não leu estes rótulos. Guardei as fotos: quando ele tiver forças, lê todos de uma vez.</p>
     <div class="lista">${porLer.map(p => `<div class="item" data-acao="verFrasco" data-id="${p.id}">${miniFoto(p)}<div class="t"><b>${nomeP(p)}</b><span>${esc(tipoCurto(p.tipo))}</span></div></div>`).join('')}</div>
-    ${cfg.chave ? `<button class="btn ouro" data-acao="lerPendentes">${IC.ia} Ler agora</button>` : ''}</div>`;
+    ${temIA() ? `<button class="btn ouro" data-acao="lerPendentes">${IC.ia} Ler agora</button>` : ''}</div>`;
   html += blocoRevisao();
   if (acabados.length) html += `<details class="placa simples"><summary><h2 style="display:inline;padding:0">Acabados</h2> <span class="suave peq">(${acabados.length})</span></summary>
     <div class="lista" style="margin-top:10px">${acabados.map(p => `<div class="item" data-acao="verFrasco" data-id="${p.id}">${miniFoto(p)}<div class="t"><b>${nomeP(p)}</b><span>Acabou a ${dataCurta(p.fim)}${p.recomprar === false ? ' · não recomprar' : p.recomprar ? ' · recomprar' : ''}</span></div></div>`).join('')}</div></details>`;
@@ -288,7 +289,7 @@ function rFrascos(){
 }
 function blocoRevisao(){
   if (!produtos.some(p => !p.fim)) return '';
-  if (!cfg.chave) return `<div class="placa col"><h2>Conselho do Mestre</h2><p class="suave peq" style="margin:0">Com a IA ligada, o Mestre revê os teus frascos: diz quais são essenciais, quais podes gastar e não recomprar, e o que te falta.</p><button class="btn" data-acao="irPerfil">${IC.ia} Ligar a IA no Perfil</button></div>`;
+  if (!temIA()) return `<div class="placa col"><h2>Conselho do Mestre</h2><p class="suave peq" style="margin:0">Com a IA ligada, o Mestre revê os teus frascos: diz quais são essenciais, quais podes gastar e não recomprar, e o que te falta.</p><button class="btn" data-acao="irPerfil">${IC.ia} Ligar a IA no Perfil</button></div>`;
   if (!revisao) return `<div class="placa col"><h2>Conselho do Mestre</h2><p class="suave peq" style="margin:0">O Mestre revê os teus frascos de acordo com a tua pele: o que é essencial, o que podes gastar e não voltar a comprar, e o que falta.</p><button class="btn ouro" data-acao="reverFrascos">${IC.ia} Pedir revisão ao Mestre</button></div>`;
   return `<div class="placa col"><h2>Conselho do Mestre</h2><div class="resposta-mestre"><span class="quem">O Mestre diz</span>${mdLeve(revisao.resumo || '')}</div>
     ${(revisao.alertas || []).map(a => `<div class="alerta">${IC.alerta}<div>${esc(a)}</div></div>`).join('')}
@@ -318,12 +319,12 @@ function folhaFrasco(id){
     </dl>
     <div class="botoes">
       ${!p.fim ? `<button class="btn ouro" data-acao="acabou" data-id="${p.id}">${IC.fim} Acabou</button>` : `<button class="btn" data-acao="reativar" data-id="${p.id}">Voltar a usar</button>`}
-      ${p.porLer && cfg.chave ? `<button class="btn ouro" data-acao="lerPendentes" data-id="${p.id}">${IC.ia} Ler com o Mestre</button>` : ''}
+      ${p.porLer && temIA() ? `<button class="btn ouro" data-acao="lerPendentes" data-id="${p.id}">${IC.ia} Ler com o Mestre</button>` : ''}
       ${esp ? `<button class="btn" data-acao="usarAgora" data-id="${p.id}">Usar este agora</button>` : ''}
       ${!p.fim && !p.aberto ? `<button class="btn" data-acao="abriHoje" data-id="${p.id}">Abri hoje</button>` : ''}
       ${!p.fim ? `<button class="btn" data-acao="pausar" data-id="${p.id}">${p.pausa ? IC.retomar + ' Retomar' : IC.pausa + ' Pausar'}</button>` : ''}
       <button class="btn" data-acao="editar" data-id="${p.id}">${IC.editar} Editar</button>
-      ${cfg.chave ? `<button class="btn" data-acao="perguntar" data-q="${esc(`Fala-me do ${p.nome}${p.marca ? ' (' + p.marca + ')' : ''}: está a ser bem usado na minha rotina?`)}">${IC.ia} Perguntar</button>` : ''}
+      ${temIA() ? `<button class="btn" data-acao="perguntar" data-q="${esc(`Fala-me do ${p.nome}${p.marca ? ' (' + p.marca + ')' : ''}: está a ser bem usado na minha rotina?`)}">${IC.ia} Perguntar</button>` : ''}
       <button class="btn perigo" data-acao="apagar" data-id="${p.id}">${IC.lixo}</button></div>`, 'frasco');
 }
 function folhaEditar(){
@@ -333,7 +334,7 @@ function folhaEditar(){
     ${r.duvida ? `<div class="alerta">${IC.alerta}<div>${esc(r.duvida)}</div></div>` : ''}
     ${r.adequado ? `<div class="resposta-mestre"><span class="quem">O Mestre diz</span>${esc(r.adequado)}</div>` : ''}
     <div class="botoes">${r.foto ? '' : `<button class="btn peq-btn" data-acao="fotoRascunho" data-v="1">${IC.camara} Foto do frasco</button>`}
-      ${cfg.chave && r.foto ? `<button class="btn peq-btn" data-acao="fotoRascunho" data-v="2">${IC.camara} Ler a lista de ingredientes</button>` : ''}</div>
+      ${temIA() && r.foto ? `<button class="btn peq-btn" data-acao="fotoRascunho" data-v="2">${IC.camara} Ler a lista de ingredientes</button>` : ''}</div>
     <label class="campo">Nome${r.porLer ? ' <span class="suave mini" style="font-weight:400">(opcional: o Mestre preenche depois)</span>' : ''}<input type="text" data-campo="rNome" value="${esc(r.nome)}" placeholder="Ex.: Sérum de niacinamida 10%"></label>
     <div class="duas"><label class="campo">Marca<input type="text" data-campo="rMarca" value="${esc(r.marca)}"></label>
       <label class="campo">Tipo<select data-campo="rTipo">${Object.entries(TIPOS).map(([k, t]) => op(k, t[0], r.tipo === k)).join('')}</select></label></div>
@@ -356,12 +357,12 @@ function folhaEditar(){
 const medidaVal = (r, k) => r && r[k] != null ? r[k] : (k === 'geral' ? 2 : 0);
 function formPele(){
   const f = peleForm;
-  return `<label class="campo">Descreve por palavras tuas <span class="suave mini" style="font-weight:400">(opcional${cfg.chave ? ', o Mestre lê e preenche' : ''})</span>
+  return `<label class="campo">Descreve por palavras tuas <span class="suave mini" style="font-weight:400">(opcional${temIA() ? ', o Mestre lê e preenche' : ''})</span>
       <div class="linha"><textarea rows="2" data-campo="fNota" placeholder="Ex.: zona T oleosa, uma borbulha nova no queixo, bochechas a repuxar">${esc(f.nota)}</textarea><button class="btn icone" data-acao="falar" data-alvo="fNota" aria-label="Falar">${IC.mic}</button></div></label>
     ${MEDIDAS.map(([k, n, et]) => `<div class="medida"><label for="m_${k}">${n}</label><output id="o_${k}">${et[medidaVal(f, k)]}</output>
       <input type="range" id="m_${k}" min="0" max="4" step="1" value="${medidaVal(f, k)}" data-campo="fMedida" data-k="${k}"></div>`).join('')}
     <div><h3>Sinais</h3><div class="chips">${SINAIS.map(s => chip(f.sinais.includes(s), 'fSinal', s, s)).join('')}</div></div>
-    ${cfg.chave ? `<div class="linha"><button class="btn peq-btn" data-acao="fotoPele">${IC.camara} ${f.foto ? 'Trocar foto' : 'Foto da pele'}</button><span class="suave mini cresce">${f.foto ? 'Foto pronta. Só o Mestre a vê; não fica guardada.' : 'Opcional: o Mestre olha para ela. Não fica guardada.'}</span></div>` : ''}
+    ${temIA() ? `<div class="linha"><button class="btn peq-btn" data-acao="fotoPele">${IC.camara} ${f.foto ? 'Trocar foto' : 'Foto da pele'}</button><span class="suave mini cresce">${f.foto ? 'Foto pronta. Só o Mestre a vê; não fica guardada.' : 'Opcional: o Mestre olha para ela. Não fica guardada.'}</span></div>` : ''}
     <button class="btn jade largo" data-acao="guardarPele">${IC.visto} Guardar o registo de hoje</button>`;
 }
 function grafico(){
@@ -392,7 +393,7 @@ function rPele(){
   $('#vPele').innerHTML = html;
 }
 function blocoAvaliacao(){
-  if (!cfg.chave) return `<p class="suave peq" style="margin:0">Com a IA ligada, o Mestre cruza os teus registos com os produtos que começaste e diz-te o que está a resultar.</p><button class="btn" data-acao="irPerfil">${IC.ia} Ligar a IA no Perfil</button>`;
+  if (!temIA()) return `<p class="suave peq" style="margin:0">Com a IA ligada, o Mestre cruza os teus registos com os produtos que começaste e diz-te o que está a resultar.</p><button class="btn" data-acao="irPerfil">${IC.ia} Ligar a IA no Perfil</button>`;
   if (pele.length < 3) return `<p class="suave peq" style="margin:0">Faz pelo menos 3 registos (idealmente 2 ou 3 por semana) para o Mestre poder avaliar.</p>`;
   const EF = {a_funcionar: ['A resultar', ''], cedo: ['Cedo para dizer', 'apagado'], sem_efeito: ['Sem efeito visível', 'aviso'], suspeito: ['Suspeito', 'perigo']};
   const a = avaliacao;
@@ -412,9 +413,9 @@ function rMestre(){
     : `<div class="msg mestre"><span class="quem">O Mestre</span>${mdLeve(m.t)}${(m.produtos || []).map(s => `<div class="sugestao"><div class="t"><b>${esc(s.nome)}</b>${esc(s.porque || '')}${s.preco ? ` <span class="suave">· ${esc(s.preco)}</span>` : ''}</div><a class="btn icone" href="${procurarURL(s.nome)}" target="_blank" rel="noopener" aria-label="Procurar">${IC.lupa}</a></div>`).join('')}</div>`).join('')
     : `<div class="msg mestre"><span class="quem">O Mestre</span><p>Sê bem-vindo, discípulo. A pele é como a água da nascente: com constância e as escolhas certas, torna-se clara e serena.</p><p>Pergunta-me o que quiseres: que creme te falta, o que não deves misturar, o que fazer com uma borbulha teimosa, ou ajuda para encontrares um produto.</p></div>`;
   $('#vMestre').innerHTML = `<div class="linha">${MESTRE_FIG}<div><h1 class="titulo-vista">O Mestre</h1><p class="sub-vista" style="margin:0">Conhece os teus frascos e a tua pele.</p></div></div>
-    ${!cfg.chave ? `<div class="placa col"><p class="suave peq" style="margin:0">O Mestre precisa da tua chave gratuita do Gemini. Liga-a no Perfil (demora 1 minuto).</p><button class="btn jade" data-acao="irPerfil">${IC.ia} Ligar a IA</button></div>` : ''}
+    ${!temIA() ? `<div class="placa col"><p class="suave peq" style="margin:0">O Mestre precisa de uma chave gratuita de IA (Gemini ou Groq). Liga-a no Perfil (demora 1 minuto).</p><button class="btn jade" data-acao="irPerfil">${IC.ia} Ligar a IA</button></div>` : ''}
     <div class="conversa" id="conversa">${msgs}</div>
-    ${cfg.chave ? `<div class="chips">${PERGUNTAS.map(q => `<span class="chip" data-acao="perguntar" data-q="${esc(q)}">${esc(q)}</span>`).join('')}</div>
+    ${temIA() ? `<div class="chips">${PERGUNTAS.map(q => `<span class="chip" data-acao="perguntar" data-q="${esc(q)}">${esc(q)}</span>`).join('')}</div>
     ${conversa.length ? '<button class="btn fantasma peq-btn" data-acao="limparConversa" style="align-self:center">Limpar a conversa</button>' : ''}
     <div class="escrever"><textarea id="pergunta" rows="1" placeholder="Pergunta ao Mestre…" enterkeyhint="send"></textarea><button class="btn icone" data-acao="falar" data-alvo="pergunta" aria-label="Falar">${IC.mic}</button><button class="btn icone jade" data-acao="enviarPergunta" aria-label="Enviar">${IC.enviar}</button></div>` : ''}`;
 }
@@ -436,7 +437,12 @@ function rPerfil(){
       <p class="suave peq" style="margin:0">O Mestre usa o Gemini da Google, com uma chave gratuita tua, guardada só neste dispositivo. Para criar: abre <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com/app/apikey</a>, entra com a conta Google, toca em "Create API key" e cola a chave aqui.</p>
       ${chaveAlheia ? `<div class="alerta info">${IC.info}<div class="cresce">Encontrei a chave que já usas noutra app tua (Forja ou Garfada).<div style="margin-top:6px"><button class="btn peq-btn" data-acao="usarChaveAlheia">Usar a mesma chave</button></div></div></div>` : ''}
       <label class="campo">Chave do Gemini<div class="linha"><input type="password" id="pChave" value="${esc(cfg.chave)}" placeholder="Cola aqui a chave" autocomplete="off"><button class="btn icone" data-acao="verChave" aria-label="Ver">${IC.lupa}</button></div></label>
-      <div class="linha"><button class="btn jade" data-acao="testarIA">Guardar e testar</button><span class="suave mini cresce" id="iaTeste">${cfg.chave ? 'Modelo: ' + esc(cfg.modelo) : ''}</span></div></div>
+      <div class="linha"><button class="btn jade" data-acao="testarIA">Guardar e testar</button><span class="suave mini cresce" id="iaTeste">${temIA() ? 'Modelo: ' + esc(cfg.modelo) : ''}</span></div></div>
+    <div class="placa col"><h2>IA de reserva (Groq)</h2>
+      <p class="suave peq" style="margin:0">Quando o Gemini esgota o limite do dia, o Mestre passa para o Groq, outra IA gratuita que também lê fotos. Também funciona sozinha, sem o Gemini. Para criar a chave: abre <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>, entra com a conta Google ou GitHub, toca em "Create API Key" e cola-a aqui.</p>
+      <label class="campo">Chave do Groq<div class="linha"><input type="password" id="pGroq" value="${esc(cfg.groqChave || '')}" placeholder="gsk_…" autocomplete="off"><button class="btn icone" data-acao="verGroq" aria-label="Ver">${IC.lupa}</button></div></label>
+      <label class="campo">Modelo (tem de aceitar imagens)<input type="text" id="pGroqModelo" value="${esc(cfg.groqModelo || GROQ_MODELO)}" autocomplete="off"></label>
+      <div class="linha"><button class="btn jade" data-acao="testarGroq">Guardar e testar</button><span class="suave mini cresce" id="groqTeste">${cfg.groqChave ? 'Reserva pronta.' : ''}</span></div></div>
     <details class="placa col"><summary><h2 style="display:inline">Sincronização entre dispositivos</h2> <span class="suave peq">(opcional)</span></summary>
       <div class="col" style="margin-top:12px"><p class="suave peq" style="margin:0">Guarda os dados num repositório privado teu no GitHub, para teres o mesmo no telemóvel e no PC. Cria um repositório privado (por exemplo, nascente-dados) e um token "fine-grained" com permissão Contents: Read and write só nesse repositório. As fotos dos frascos ficam só em cada dispositivo.</p>
       <label class="campo">Dono (utilizador GitHub)<input type="text" id="gDono" value="${esc(gh.dono)}" autocomplete="off"></label>

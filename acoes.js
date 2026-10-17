@@ -27,7 +27,7 @@ async function esperarIA(seg){
   iaEsperaCancelada = false;
   for (let s = Math.ceil(seg); s > 0; s--){ if (iaEsperaCancelada) throw new Error('Cancelado.'); iaAviso(`Muitos pedidos seguidos. O Mestre respira… ${s} s`); await new Promise(r => setTimeout(r, 1000)); }
 }
-async function gemini(texto, {json = true, imagens = [], espera = 60000} = {}){
+async function geminiDireto(texto, {json = true, imagens = [], espera = 60000} = {}){
   if (!cfg.chave) throw new Error('Falta a chave do Gemini no Perfil.');
   const gc = json ? {temperature: .3, responseMimeType: 'application/json'} : {temperature: .6};
   const parts = [{text: texto}, ...imagens.map(d => ({inline_data: {mime_type: 'image/jpeg', data: String(d).split(',')[1]}}))];
@@ -75,6 +75,59 @@ async function gemini(texto, {json = true, imagens = [], espera = 60000} = {}){
   }
   if (!esgotou) throw new Error('Erro do Gemini: ' + (ultimoErro || 'nenhum modelo disponível') + '. No Perfil, toca em "Guardar e testar".');
   throw new ErroLimite(`O Mestre esgotou as forças de hoje: o limite diário gratuito do Gemini acabou em todos os modelos (é partilhado com as outras apps que usam a mesma chave). Volta às ${horaReset()}.`);
+}
+/* ---------- IA de reserva: Groq (compatível com OpenAI) ---------- */
+const GROQ = 'https://api.groq.com/openai/v1/', GROQ_MODELO = 'qwen/qwen3.8-27b';
+async function groq(texto, {json = true, imagens = [], espera = 60000} = {}){
+  const modelo = cfg.groqModelo || GROQ_MODELO;
+  const content = imagens.length ? [{type: 'text', text: texto}, ...imagens.slice(-3).map(d => ({type: 'image_url', image_url: {url: d}}))] : texto;
+  const pedir = async comJSON => {
+    const ped = iaPedido = {ctl: new AbortController(), cancelado: false}, t = setTimeout(() => ped.ctl.abort(), espera);
+    const corpo = {model: modelo, messages: [{role: 'user', content}], temperature: .3};
+    if (comJSON) corpo.response_format = {type: 'json_object'};
+    try {
+      return await fetch(GROQ + 'chat/completions', {method: 'POST', signal: ped.ctl.signal,
+        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.groqChave}, body: JSON.stringify(corpo)});
+    } catch(e){
+      if (ped.cancelado) throw new Error('Cancelado.');
+      if (ped.ctl.signal.aborted) throw new Error('A reserva (Groq) demorou demasiado. Tenta outra vez.');
+      throw new Error('Sem ligação à internet.');
+    } finally { clearTimeout(t); if (iaPedido === ped) iaPedido = null; }
+  };
+  let r = await pedir(json), j = await r.json().catch(() => ({}));
+  if (r.status === 400 && json && !/model/i.test((j.error && j.error.message) || '')){ r = await pedir(false); j = await r.json().catch(() => ({})); }
+  if (r.status === 429){
+    const m = String((j.error && j.error.message) || '').match(/try again in\s*(?:(\d+)m)?\s*([\d.]+)\s*s/i), seg = m ? (+m[1] || 0) * 60 + parseFloat(m[2]) : 0;
+    if (seg > 0 && seg <= 65){ await esperarIA(seg + 1); r = await pedir(json); j = await r.json().catch(() => ({})); }
+  }
+  if (!r.ok){
+    const msg = (j.error && j.error.message) || String(r.status);
+    if (r.status === 401) throw new Error('Chave do Groq inválida. Verifica no Perfil.');
+    if (r.status === 429) throw new ErroLimite(`O Gemini e a reserva (Groq) estão sem forças por agora. O Gemini volta às ${horaReset()}.`);
+    if (r.status === 404 || /model/i.test(msg)) throw new Error(`O modelo ${modelo} não está disponível no Groq. Muda-o no Perfil.`);
+    throw new Error('Erro do Groq: ' + msg);
+  }
+  const txt = String((((j.choices || [])[0] || {}).message || {}).content || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  if (!txt) throw new Error('A reserva não respondeu. Tenta outra vez.');
+  return txt;
+}
+// O Mestre usa o Gemini; se não houver chave, se estiver esgotado ou se falhar, passa para o Groq.
+async function gemini(texto, opts = {}){
+  if (!cfg.chave){ if (cfg.groqChave) return groq(texto, opts); throw new Error('Falta uma chave de IA no Perfil.'); }
+  if (cfg.groqChave && !modelosCandidatos().length) return groq(texto, opts);
+  try { return await geminiDireto(texto, opts); }
+  catch(e){
+    if (!cfg.groqChave || e.message === 'Cancelado.' || /Sem ligação/.test(e.message)) throw e;
+    iaAviso('O Gemini não deu. O Mestre usa a reserva…');
+    return groq(texto, opts);
+  }
+}
+async function testarGroq(){
+  let r; try { r = await fetch(GROQ + 'models', {headers: {'Authorization': 'Bearer ' + cfg.groqChave}}); } catch(e){ throw new Error('Sem ligação à internet.'); }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(r.status === 401 ? 'Chave inválida.' : 'Erro: ' + ((j.error && j.error.message) || r.status));
+  const ids = (j.data || []).map(m => m.id), modelo = cfg.groqModelo || GROQ_MODELO;
+  return ids.includes(modelo) ? `Ligado. Modelo: ${modelo}` : `Chave válida, mas o modelo ${modelo} não existe. Disponíveis: ${ids.filter(i => !/whisper|tts|guard|embed/i.test(i)).slice(0, 6).join(', ')}`;
 }
 function lerJSON(txt){
   const s = String(txt).replace(/```(?:json)?/gi, ''), a = s.indexOf('{'), b = s.lastIndexOf('}');
@@ -148,7 +201,7 @@ Responde só com JSON:
   return normalizarProduto(lerJSON(await gemini(prompt, {imagens})));
 }
 async function reverFrascos(){
-  if (!cfg.chave) return irPara('vPerfil');
+  if (!temIA()) return irPara('vPerfil');
   abrirFolha(aMeditar('O Mestre medita sobre os teus frascos…'), 'ia');
   const ctx = contexto();
   const prompt = `${MESTRE}
@@ -194,7 +247,7 @@ Responde só com JSON: {"valores":{"geral":2,"oleo":0,"secura":0,"borbulhas":0,"
   return lerJSON(await gemini(prompt, {imagens: foto ? [foto] : []}));
 }
 async function avaliar(){
-  if (!cfg.chave) return irPara('vPerfil');
+  if (!temIA()) return irPara('vPerfil');
   abrirFolha(aMeditar('O Mestre lê o caminho da tua pele…'), 'ia');
   const ctx = contexto();
   const prompt = `${MESTRE}
@@ -221,7 +274,7 @@ Responde só com JSON: {"veredicto":"2 a 3 frases","tendencias":["até 4 tendên
 let aPerguntar = false;
 async function perguntarMestre(q){
   q = String(q || '').trim(); if (!q || aPerguntar) return;
-  if (!cfg.chave) return irPara('vPerfil');
+  if (!temIA()) return irPara('vPerfil');
   if (vista !== 'vMestre') irPara('vMestre');
   aPerguntar = true;
   const historico = conversa.slice(-10).map(m => (m.q === 'eu' ? 'Discípulo: ' : 'Mestre: ') + m.t).join('\n') || '(início)';
@@ -317,7 +370,7 @@ function aplicarLeitura(p, o){
   p.porLer = false; p.atualizado = Date.now(); fotoApagar(p.id + ':ia');
 }
 async function lerPendentes(lista){
-  if (!cfg.chave) return irPara('vPerfil');
+  if (!temIA()) return irPara('vPerfil');
   lista = lista || produtos.filter(p => p.porLer && !p.fim);
   if (!lista.length) return;
   abrirFolha(aMeditar(`O Mestre lê os rótulos… 1 de ${lista.length}`), 'ia');
@@ -340,7 +393,7 @@ function fotografar(){
     try {
       const [ia, mini] = await Promise.all([comprimir(f, 1280, .82), comprimir(f, 420, .8)]);
       rascunho = novoRascunho({foto: mini, fotoNova: true, fotosIA: [ia]});
-      if (!cfg.chave){ folhaEditar(); toast('Sem IA ligada: preenche à mão. No Perfil podes ligar o Mestre para ler os rótulos.', 4500); return; }
+      if (!temIA()){ folhaEditar(); toast('Sem IA ligada: preenche à mão. No Perfil podes ligar o Mestre para ler os rótulos.', 4500); return; }
       lerRascunhoIA();
     } catch(e){ toast(e.message); }
   });
@@ -367,7 +420,7 @@ function folhaAcabou(p){
   let corpo;
   if (seguinte) corpo = `<p>Passa a usar o <b>${nomeP(seguinte)}</b>. Já entrou no teu ritual, no mesmo lugar.</p>`;
   else if (essencial) corpo = `<p>Precisas de um novo <b>${esc(tipoCurto(p.tipo).toLowerCase())}</b>: é um passo essencial do teu ritual.</p>
-    <div class="botoes">${cfg.chave ? `<button class="btn ouro" data-acao="perguntar" data-q="${esc(`Acabou-se o meu ${p.nome}. Que ${tipoCurto(p.tipo).toLowerCase()} devo comprar para a minha pele?`)}">${IC.ia} O que comprar?</button>` : ''}
+    <div class="botoes">${temIA() ? `<button class="btn ouro" data-acao="perguntar" data-q="${esc(`Acabou-se o meu ${p.nome}. Que ${tipoCurto(p.tipo).toLowerCase()} devo comprar para a minha pele?`)}">${IC.ia} O que comprar?</button>` : ''}
     <a class="btn" href="${procurarURL(p.marca ? p.marca + ' ' + p.nome : p.nome)}" target="_blank" rel="noopener">${IC.lupa} Procurar o mesmo</a></div>`;
   else corpo = `<p>Não precisas de o substituir. ${lista.length ? 'Continua só com estes:' : ''}</p>${lista.length ? `<div class="lista">${lista.map(o => `<div class="item">${miniFoto(o)}<div class="t"><b>${nomeP(o)}</b><span>${esc(tipoCurto(o.tipo))}</span></div></div>`).join('')}</div>` : ''}`;
   const falta = faltas(ctx.uso);
@@ -413,7 +466,7 @@ async function guardarRegistoPele(){
     Object.fromEntries(MEDIDAS.map(m => [m[0], +medidaVal(f, m[0])])));
   if (!existente) pele.push(r);
   guardarPele();
-  if (!cfg.chave){ peleForm = null; rPele(); return toast('Registo guardado.'); }
+  if (!temIA()){ peleForm = null; rPele(); return toast('Registo guardado.'); }
   abrirFolha(aMeditar(f.foto ? 'O Mestre observa a tua pele…' : 'O Mestre medita sobre o teu registo…'), 'ia');
   try {
     const o = await comentarPele(r, f.foto);
@@ -618,6 +671,14 @@ const ACOES = {
   pCapa(el){ cfg.capa = cfg.capa === false; guardarCfg(); el.classList.toggle('on'); },
   verCapa: mostrarCapa,
   usarChaveAlheia(){ cfg.chave = chaveDeOutraApp(); guardarCfg(); rPerfil(); ACOES.testarIA(); },
+  verGroq(){ const i = $('#pGroq'); i.type = i.type === 'password' ? 'text' : 'password'; },
+  async testarGroq(){
+    const st = $('#groqTeste'); cfg.groqChave = $('#pGroq').value.trim(); cfg.groqModelo = $('#pGroqModelo').value.trim() || GROQ_MODELO; guardarCfg();
+    if (!cfg.groqChave){ if (st) st.textContent = 'Sem chave.'; return; }
+    if (st) st.textContent = 'A testar…';
+    try { const t = await testarGroq(); if (st) st.textContent = t; if (/^Ligado/.test(t)) toast('Reserva pronta: se o Gemini esgotar, o Mestre usa o Groq.'); }
+    catch(e){ if (st) st.textContent = e.message; }
+  },
   verChave(){ const i = $('#pChave'); i.type = i.type === 'password' ? 'text' : 'password'; },
   async testarIA(){
     const i = $('#pChave'), st = $('#iaTeste'); if (i) cfg.chave = i.value.trim(); guardarCfg();
@@ -645,7 +706,7 @@ const ACOES = {
       try {
         const [ia, mini] = await Promise.all([comprimir(f, 1280, .82), segunda ? null : comprimir(f, 420, .8)]);
         if (segunda) rascunho.fotosIA = [...rascunho.fotosIA.slice(0, 2), ia]; else { rascunho.foto = mini; rascunho.fotoNova = true; rascunho.fotosIA = [ia]; }
-        if (cfg.chave) lerRascunhoIA(); else folhaEditar();
+        if (temIA()) lerRascunhoIA(); else folhaEditar();
       } catch(e){ toast(e.message); }
     });
   },

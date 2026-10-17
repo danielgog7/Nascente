@@ -14,7 +14,7 @@ function horaReset(){
 }
 function modelosCandidatos(){
   const hoje = diaPacifico(), esg = cfg.esgotados || {};
-  return [...(cfg.modelos || []), cfg.modelo, 'gemini-flash-latest', 'gemini-flash-lite-latest'].filter((m, i, l) => m && l.indexOf(m) === i && esg[m] !== hoje);
+  return [...(cfg.modelos || []), cfg.modelo, 'gemini-flash-latest', 'gemini-flash-lite-latest'].filter((m, i, l) => m && l.indexOf(m) === i && esg[m] !== hoje && !(cfg.incompat || {})[m]);
 }
 function limiteInfo(j){
   const det = (j.error && j.error.details) || [], ids = det.filter(d => /QuotaFailure/.test(d['@type'] || '')).flatMap(d => (d.violations || []).map(v => v.quotaId || '')).join(' ');
@@ -45,29 +45,35 @@ async function gemini(texto, {json = true, imagens = [], espera = 60000} = {}){
   };
   if (!(cfg.modelos || []).length) try { await listarModelos(); } catch(e){}
   const candidatos = modelosCandidatos();
+  let esgotou = false, ultimoErro = '';
   for (let i = 0, esperou = false; i < candidatos.length; i++){
-    const modelo = String(candidatos[i]).replace(/^models\//, '');
-    let r = await pedir(modelo, iaPensarSempre || !/flash/i.test(modelo)), j = await r.json().catch(() => ({}));
-    if (!r.ok && r.status === 400 && /think/i.test((j.error && j.error.message) || '') && !iaPensarSempre){
-      iaPensarSempre = true; r = await pedir(modelo, true); j = await r.json().catch(() => ({}));
+    const modelo = String(candidatos[i]).replace(/^models\//, ''), semPensar = iaPensarSempre || !/flash/i.test(modelo);
+    let r = await pedir(modelo, semPensar), j = await r.json().catch(() => ({}));
+    // Alguns modelos não aceitam desligar o "pensamento": repete sem essa opção.
+    if (r.status === 400 && !semPensar){
+      const msg400 = (j.error && j.error.message) || '';
+      r = await pedir(modelo, true); j = await r.json().catch(() => ({}));
+      if (r.ok && /think/i.test(msg400)) iaPensarSempre = true;
     }
     if (r.status === 429){
       const info = limiteInfo(j);
       if (!info.porDia && !esperou){ esperou = true; await esperarIA(info.espera); i--; continue; }
       cfg.esgotados = Object.assign({}, cfg.esgotados, {[modelo]: diaPacifico()}); guardarCfg();
-      iaAviso('Este modelo esgotou por hoje. A tentar outro…'); esperou = false; continue;
+      esgotou = true; iaAviso('Este modelo esgotou por hoje. A tentar outro…'); esperou = false; continue;
     }
-    if (r.status === 404 && i + 1 < candidatos.length) continue;
     if (!r.ok){
-      const msg = (j.error && j.error.message) || '';
+      const msg = (j.error && j.error.message) || String(r.status);
       if (r.status === 401 || r.status === 403 || /api key/i.test(msg)) throw new Error('Chave do Gemini inválida. Verifica no Perfil.');
-      throw new Error('Erro do Gemini: ' + (msg || r.status));
+      // Modelo que não serve para este pedido (não aceita imagens, JSON, etc.): fica de lado e tenta-se o seguinte.
+      if (r.status === 400 || r.status === 404){ cfg.incompat = Object.assign({}, cfg.incompat, {[modelo]: 1}); guardarCfg(); }
+      ultimoErro = msg; continue;
     }
     if (modelo !== cfg.modelo){ cfg.modelo = modelo; guardarCfg(); }
     const txt = ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).filter(p => !p.thought).map(p => p.text || '').join('');
     if (!txt) throw new Error('O Mestre não respondeu. Tenta outra vez.');
     return txt;
   }
+  if (!esgotou) throw new Error('Erro do Gemini: ' + (ultimoErro || 'nenhum modelo disponível') + '. No Perfil, toca em "Guardar e testar".');
   throw new ErroLimite(`O Mestre esgotou as forças de hoje: o limite diário gratuito do Gemini acabou em todos os modelos (é partilhado com as outras apps que usam a mesma chave). Volta às ${horaReset()}.`);
 }
 function lerJSON(txt){
@@ -83,7 +89,7 @@ async function listarModelos(){
   const pts = n => (/latest/.test(n) ? 100 : 0) - (/lite/.test(n) ? 10 : 0) - (/preview/.test(n) ? 5 : 0) + (parseFloat((n.match(/\d+(\.\d+)?/) || [])[0]) || 0);
   const nomes = (j.models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent')).map(m => m.name.replace(/^models\//, ''))
     .filter(n => /flash/i.test(n) && !/(image|tts|audio|live|embed|exp)/i.test(n)).sort((a, b) => pts(b) - pts(a));
-  cfg.modelos = nomes.slice(0, 8);
+  cfg.modelos = nomes.slice(0, 8); cfg.incompat = {};
   if (nomes.length && !nomes.includes(cfg.modelo)) cfg.modelo = nomes[0];
   guardarCfg();
   return nomes;

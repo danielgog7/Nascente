@@ -277,6 +277,10 @@ function rFrascos(){
   if (ctx.espera.length) html += `<div class="placa"><h2>Em espera</h2><p class="suave peq">Repetem a função de outro frasco. Entram quando o anterior acabar, para não abrires tudo ao mesmo tempo.</p>
     <div class="grelha-frascos">${ctx.espera.map(e => cartaoFrasco(e.p, ctx.uso, `<span style="color:var(--ouro)">Depois de ${esc(e.depois.nome)}</span>`, 'espera')).join('')}</div></div>`;
   if (pausa.length) html += `<div class="placa"><h2>Em pausa</h2><p class="suave peq">Não entram no ritual até os retomares.</p><div class="grelha-frascos">${pausa.map(p => cartaoFrasco(p, ctx.uso, '', 'espera')).join('')}</div></div>`;
+  const porLer = produtos.filter(p => p.porLer && !p.fim);
+  if (porLer.length) html += `<div class="placa col"><h2>Por ler <span class="suave peq">(${porLer.length})</span></h2><p class="suave peq" style="margin:0">O Mestre ainda não leu estes rótulos. Guardei as fotos: quando ele tiver forças, lê todos de uma vez.</p>
+    <div class="lista">${porLer.map(p => `<div class="item" data-acao="verFrasco" data-id="${p.id}">${miniFoto(p)}<div class="t"><b>${nomeP(p)}</b><span>${esc(tipoCurto(p.tipo))}</span></div></div>`).join('')}</div>
+    ${cfg.chave ? `<button class="btn ouro" data-acao="lerPendentes">${IC.ia} Ler agora</button>` : ''}</div>`;
   html += blocoRevisao();
   if (acabados.length) html += `<details class="placa simples"><summary><h2 style="display:inline;padding:0">Acabados</h2> <span class="suave peq">(${acabados.length})</span></summary>
     <div class="lista" style="margin-top:10px">${acabados.map(p => `<div class="item" data-acao="verFrasco" data-id="${p.id}">${miniFoto(p)}<div class="t"><b>${nomeP(p)}</b><span>Acabou a ${dataCurta(p.fim)}${p.recomprar === false ? ' · não recomprar' : p.recomprar ? ' · recomprar' : ''}</span></div></div>`).join('')}</div></details>`;
@@ -314,6 +318,7 @@ function folhaFrasco(id){
     </dl>
     <div class="botoes">
       ${!p.fim ? `<button class="btn ouro" data-acao="acabou" data-id="${p.id}">${IC.fim} Acabou</button>` : `<button class="btn" data-acao="reativar" data-id="${p.id}">Voltar a usar</button>`}
+      ${p.porLer && cfg.chave ? `<button class="btn ouro" data-acao="lerPendentes" data-id="${p.id}">${IC.ia} Ler com o Mestre</button>` : ''}
       ${esp ? `<button class="btn" data-acao="usarAgora" data-id="${p.id}">Usar este agora</button>` : ''}
       ${!p.fim && !p.aberto ? `<button class="btn" data-acao="abriHoje" data-id="${p.id}">Abri hoje</button>` : ''}
       ${!p.fim ? `<button class="btn" data-acao="pausar" data-id="${p.id}">${p.pausa ? IC.retomar + ' Retomar' : IC.pausa + ' Pausar'}</button>` : ''}
@@ -329,7 +334,7 @@ function folhaEditar(){
     ${r.adequado ? `<div class="resposta-mestre"><span class="quem">O Mestre diz</span>${esc(r.adequado)}</div>` : ''}
     <div class="botoes">${r.foto ? '' : `<button class="btn peq-btn" data-acao="fotoRascunho" data-v="1">${IC.camara} Foto do frasco</button>`}
       ${cfg.chave && r.foto ? `<button class="btn peq-btn" data-acao="fotoRascunho" data-v="2">${IC.camara} Ler a lista de ingredientes</button>` : ''}</div>
-    <label class="campo">Nome<input type="text" data-campo="rNome" value="${esc(r.nome)}" placeholder="Ex.: Sérum de niacinamida 10%"></label>
+    <label class="campo">Nome${r.porLer ? ' <span class="suave mini" style="font-weight:400">(opcional: o Mestre preenche depois)</span>' : ''}<input type="text" data-campo="rNome" value="${esc(r.nome)}" placeholder="Ex.: Sérum de niacinamida 10%"></label>
     <div class="duas"><label class="campo">Marca<input type="text" data-campo="rMarca" value="${esc(r.marca)}"></label>
       <label class="campo">Tipo<select data-campo="rTipo">${Object.entries(TIPOS).map(([k, t]) => op(k, t[0], r.tipo === k)).join('')}</select></label></div>
     <div><h3>Ativos principais</h3><div class="chips">${Object.entries(ATIVOS).map(([k, n]) => `<span class="chip${r.ativos.includes(k) ? ' on' : ''}" data-acao="rAtivo" data-v="${k}" title="${esc(n)}">${esc(ATIVO_CURTO[k])}</span>`).join('')}</div></div>

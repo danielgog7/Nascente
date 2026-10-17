@@ -3,14 +3,35 @@
 
 /* ---------- IA (Gemini, chave do utilizador) ---------- */
 const API = 'https://generativelanguage.googleapis.com/v1beta/';
-let iaPedido = null, iaPensarSempre = false;
-function cancelarIA(){ if (iaPedido){ iaPedido.cancelado = true; iaPedido.ctl.abort(); } }
+let iaPedido = null, iaPensarSempre = false, iaEsperaCancelada = false;
+function cancelarIA(){ iaEsperaCancelada = true; if (iaPedido){ iaPedido.cancelado = true; iaPedido.ctl.abort(); } }
+// Limites do plano gratuito: são por projeto e por modelo (partilhados com a Forja e a Garfada se usarem a mesma chave) e repõem-se à meia-noite do Pacífico.
+class ErroLimite extends Error {}
+const diaPacifico = () => new Date().toLocaleDateString('en-CA', {timeZone: 'America/Los_Angeles'});
+function horaReset(){
+  const agora = new Date(), la = new Date(agora.toLocaleString('en-US', {timeZone: 'America/Los_Angeles'})), meia = new Date(la); meia.setHours(24, 0, 0, 0);
+  return new Date(+agora + (meia - la)).toLocaleTimeString('pt-PT', {hour: '2-digit', minute: '2-digit'});
+}
+function modelosCandidatos(){
+  const hoje = diaPacifico(), esg = cfg.esgotados || {};
+  return [...(cfg.modelos || []), cfg.modelo, 'gemini-flash-latest', 'gemini-flash-lite-latest'].filter((m, i, l) => m && l.indexOf(m) === i && esg[m] !== hoje);
+}
+function limiteInfo(j){
+  const det = (j.error && j.error.details) || [], ids = det.filter(d => /QuotaFailure/.test(d['@type'] || '')).flatMap(d => (d.violations || []).map(v => v.quotaId || '')).join(' ');
+  const ri = det.find(d => /RetryInfo/.test(d['@type'] || '')), espera = ri ? parseFloat(ri.retryDelay) || 30 : 30;
+  const porDia = /PerDay/i.test(ids) || (!/PerMinute/i.test(ids) && espera > 90);
+  return {porDia, espera: Math.min(Math.max(espera, 5), 65)};
+}
+function iaAviso(txt){ const el = document.querySelector('.a-meditar p') || document.querySelector('#aPensar p'); if (el) el.textContent = txt; }
+async function esperarIA(seg){
+  iaEsperaCancelada = false;
+  for (let s = Math.ceil(seg); s > 0; s--){ if (iaEsperaCancelada) throw new Error('Cancelado.'); iaAviso(`Muitos pedidos seguidos. O Mestre respira… ${s} s`); await new Promise(r => setTimeout(r, 1000)); }
+}
 async function gemini(texto, {json = true, imagens = [], espera = 60000} = {}){
   if (!cfg.chave) throw new Error('Falta a chave do Gemini no Perfil.');
-  const modelo = String(cfg.modelo || 'gemini-flash-latest').replace(/^models\//, '');
   const gc = json ? {temperature: .3, responseMimeType: 'application/json'} : {temperature: .6};
   const parts = [{text: texto}, ...imagens.map(d => ({inline_data: {mime_type: 'image/jpeg', data: String(d).split(',')[1]}}))];
-  const pedir = async pensar => {
+  const pedir = async (modelo, pensar) => {
     const ped = iaPedido = {ctl: new AbortController(), cancelado: false}, t = setTimeout(() => ped.ctl.abort(), espera);
     try {
       return await fetch(`${API}models/${encodeURIComponent(modelo)}:generateContent`, {method: 'POST', signal: ped.ctl.signal,
@@ -22,20 +43,32 @@ async function gemini(texto, {json = true, imagens = [], espera = 60000} = {}){
       throw new Error('Sem ligação à internet.');
     } finally { clearTimeout(t); if (iaPedido === ped) iaPedido = null; }
   };
-  let r = await pedir(iaPensarSempre || !/flash/i.test(modelo)), j = await r.json().catch(() => ({}));
-  if (!r.ok && r.status === 400 && /think/i.test((j.error && j.error.message) || '') && !iaPensarSempre){
-    iaPensarSempre = true; r = await pedir(true); j = await r.json().catch(() => ({}));
+  if (!(cfg.modelos || []).length) try { await listarModelos(); } catch(e){}
+  const candidatos = modelosCandidatos();
+  for (let i = 0, esperou = false; i < candidatos.length; i++){
+    const modelo = String(candidatos[i]).replace(/^models\//, '');
+    let r = await pedir(modelo, iaPensarSempre || !/flash/i.test(modelo)), j = await r.json().catch(() => ({}));
+    if (!r.ok && r.status === 400 && /think/i.test((j.error && j.error.message) || '') && !iaPensarSempre){
+      iaPensarSempre = true; r = await pedir(modelo, true); j = await r.json().catch(() => ({}));
+    }
+    if (r.status === 429){
+      const info = limiteInfo(j);
+      if (!info.porDia && !esperou){ esperou = true; await esperarIA(info.espera); i--; continue; }
+      cfg.esgotados = Object.assign({}, cfg.esgotados, {[modelo]: diaPacifico()}); guardarCfg();
+      iaAviso('Este modelo esgotou por hoje. A tentar outro…'); esperou = false; continue;
+    }
+    if (r.status === 404 && i + 1 < candidatos.length) continue;
+    if (!r.ok){
+      const msg = (j.error && j.error.message) || '';
+      if (r.status === 401 || r.status === 403 || /api key/i.test(msg)) throw new Error('Chave do Gemini inválida. Verifica no Perfil.');
+      throw new Error('Erro do Gemini: ' + (msg || r.status));
+    }
+    if (modelo !== cfg.modelo){ cfg.modelo = modelo; guardarCfg(); }
+    const txt = ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).filter(p => !p.thought).map(p => p.text || '').join('');
+    if (!txt) throw new Error('O Mestre não respondeu. Tenta outra vez.');
+    return txt;
   }
-  if (!r.ok){
-    const msg = (j.error && j.error.message) || '';
-    if (r.status === 429) throw new Error('Limite gratuito do Gemini atingido. Tenta mais tarde.');
-    if (r.status === 401 || r.status === 403 || /api key/i.test(msg)) throw new Error('Chave do Gemini inválida. Verifica no Perfil.');
-    if (r.status === 404) throw new Error('Modelo não encontrado. No Perfil, toca em "Guardar e testar".');
-    throw new Error('Erro do Gemini: ' + (msg || r.status));
-  }
-  const txt = ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).filter(p => !p.thought).map(p => p.text || '').join('');
-  if (!txt) throw new Error('O Mestre não respondeu. Tenta outra vez.');
-  return txt;
+  throw new ErroLimite(`O Mestre esgotou as forças de hoje: o limite diário gratuito do Gemini acabou em todos os modelos (é partilhado com as outras apps que usam a mesma chave). Volta às ${horaReset()}.`);
 }
 function lerJSON(txt){
   const s = String(txt).replace(/```(?:json)?/gi, ''), a = s.indexOf('{'), b = s.lastIndexOf('}');
@@ -50,7 +83,9 @@ async function listarModelos(){
   const pts = n => (/latest/.test(n) ? 100 : 0) - (/lite/.test(n) ? 10 : 0) - (/preview/.test(n) ? 5 : 0) + (parseFloat((n.match(/\d+(\.\d+)?/) || [])[0]) || 0);
   const nomes = (j.models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent')).map(m => m.name.replace(/^models\//, ''))
     .filter(n => /flash/i.test(n) && !/(image|tts|audio|live|embed|exp)/i.test(n)).sort((a, b) => pts(b) - pts(a));
-  if (nomes.length && !nomes.includes(cfg.modelo)){ cfg.modelo = nomes[0]; guardarCfg(); }
+  cfg.modelos = nomes.slice(0, 8);
+  if (nomes.length && !nomes.includes(cfg.modelo)) cfg.modelo = nomes[0];
+  guardarCfg();
   return nomes;
 }
 // As outras apps (Forja, Garfada, Mirante) vivem no mesmo endereço: se já houver lá uma chave do Gemini, oferece-se para a usar.
@@ -257,9 +292,42 @@ async function lerRascunhoIA(){
   try {
     const o = await lerProduto(rascunho.fotosIA);
     for (const [k, v] of Object.entries(o)) if (Array.isArray(v) ? v.length : v !== '' && v !== 0) rascunho[k] = v;
-    rascunho.duvida = o.duvida;
+    rascunho.duvida = o.duvida; rascunho.porLer = false;
     if (folhaAtual === 'ia') folhaEditar();
-  } catch(e){ if (folhaAtual === 'ia'){ folhaEditar(); toast(e.message, 4000); } }
+  } catch(e){
+    if (folhaAtual !== 'ia' || e.message === 'Cancelado.') return;
+    rascunho.porLer = true;
+    rascunho.duvida = e.message + ' Guarda o frasco assim (o nome é opcional). Mais tarde, em Frascos, toca em "Ler agora" e o Mestre preenche tudo a partir da foto.';
+    folhaEditar();
+  }
+}
+// Frascos guardados sem leitura (limite, sem rede): o Mestre lê-os depois, a partir da foto guardada.
+function aplicarLeitura(p, o){
+  const generico = !p.nome || p.nome === 'Frasco por identificar';
+  for (const k of ['tipo', 'ativos', 'quando', 'vezes', 'conc', 'modo', 'qtd', 'espera', 'aviso', 'pao', 'validade', 'funcao']){ const v = o[k]; if (Array.isArray(v) ? v.length : v !== '' && v !== 0) p[k] = v; }
+  if (generico && o.nome) p.nome = o.nome;
+  if (!p.marca && o.marca) p.marca = o.marca;
+  if (o.adequado && !p.notaMestre) p.notaMestre = o.adequado;
+  p.porLer = false; p.atualizado = Date.now(); fotoApagar(p.id + ':ia');
+}
+async function lerPendentes(lista){
+  if (!cfg.chave) return irPara('vPerfil');
+  lista = lista || produtos.filter(p => p.porLer && !p.fim);
+  if (!lista.length) return;
+  abrirFolha(aMeditar(`O Mestre lê os rótulos… 1 de ${lista.length}`), 'ia');
+  let ok = 0, erro = '';
+  for (let i = 0; i < lista.length; i++){
+    if (folhaAtual !== 'ia') break;
+    const p = lista[i], imgs = fotos[p.id + ':ia'] || (fotos[p.id] ? [fotos[p.id]] : []);
+    if (!imgs.length) continue;
+    iaAviso(`O Mestre lê os rótulos… ${i + 1} de ${lista.length}`);
+    try { aplicarLeitura(p, await lerProduto(imgs)); ok++; guardarProdutos(); }
+    catch(e){ erro = e.message; if (e instanceof ErroLimite || e.message === 'Cancelado.') break; }
+    if (i + 1 < lista.length) await new Promise(r => setTimeout(r, 2500));
+  }
+  if (folhaAtual === 'ia') fecharFolha();
+  renderAtual();
+  toast(ok ? `O Mestre leu ${ok} de ${lista.length} frascos.${erro ? ' ' + erro : ''}` : erro || 'Nada para ler.', 5000);
 }
 function fotografar(){
   escolherFoto(async f => {
@@ -273,13 +341,15 @@ function fotografar(){
 }
 function guardarFrasco(){
   const r = rascunho;
-  if (!r.nome.trim()) return toast('Falta o nome do produto.');
+  if (!r.nome.trim()){ if (!r.porLer) return toast('Falta o nome do produto.'); r.nome = 'Frasco por identificar'; }
   const campos = ['nome', 'marca', 'tipo', 'ativos', 'quando', 'vezes', 'qtd', 'modo', 'espera', 'conc', 'aviso', 'aberto', 'pao', 'validade', 'funcao'];
   let p = produtos.find(x => x.id === r.id), novo = !p;
   if (novo){ p = {id: r.id, criado: Date.now()}; produtos.push(p); }
   for (const k of campos) p[k] = r[k];
   p.nome = p.nome.trim(); p.vezes = +p.vezes || 0; p.pao = +p.pao || ''; p.atualizado = Date.now();
   if (r.fotoNova && r.foto) fotoGuardar(p.id, r.foto);
+  if (r.porLer && r.fotosIA.length){ p.porLer = true; fotoGuardar(p.id + ':ia', r.fotosIA.slice()); }
+  else if (!r.porLer && p.porLer && r.fotosIA.length){ p.porLer = false; fotoApagar(p.id + ':ia'); }
   guardarProdutos(); fecharFolha(); rascunho = null; renderAtual();
   const ctx = contexto(), esp = ctx.espera.find(e => e.p === p);
   toast(esp ? `${p.nome} fica em espera: entra quando ${esp.depois.nome} acabar.` : `${p.nome}: ${quandoTexto(p, ctx, ctx.plano).texto}.`, 4200);
@@ -585,9 +655,10 @@ const ACOES = {
   pausar(el){ const p = produtos.find(x => x.id === el.dataset.id); if (!p) return; p.pausa = !p.pausa; p.atualizado = Date.now(); guardarProdutos(); renderAtual(); folhaFrasco(p.id); },
   apagar(el){
     const i = produtos.findIndex(x => x.id === el.dataset.id); if (i < 0 || !confirm(`Apagar ${produtos[i].nome}? Se só acabou, usa "Acabou".`)) return;
-    apagados[produtos[i].id] = Date.now(); fotoApagar(produtos[i].id); produtos.splice(i, 1); guardarProdutos(); fecharFolha(); renderAtual();
+    apagados[produtos[i].id] = Date.now(); fotoApagar(produtos[i].id); fotoApagar(produtos[i].id + ':ia'); produtos.splice(i, 1); guardarProdutos(); fecharFolha(); renderAtual();
   },
   reverFrascos,
+  lerPendentes: el => lerPendentes(el.dataset.id ? produtos.filter(p => p.id === el.dataset.id) : null),
   falar(el){ const alvo = document.querySelector(`[data-campo="${el.dataset.alvo}"]`) || document.getElementById(el.dataset.alvo); if (alvo) ouvir(el, alvo); },
   fSinal(el){ alternar(peleForm.sinais, el.dataset.v); el.classList.toggle('on'); },
   fotoPele(){ escolherFoto(async f => { try { peleForm.foto = await comprimir(f, 1024, .8); rPele(); toast('Foto pronta. Toca em Guardar.'); } catch(e){ toast(e.message); } }); },

@@ -210,6 +210,14 @@ function contexto(){
   return ctx;
 }
 // Passos de um ritual com os lugares em falta da rotina base, cada um na sua posição.
+function passosDoDia(data, s, ctx){
+  const r = registos[diaChave(data)] || {}, se = sessao(data, s, ctx, ctx.plano);
+  const tirar = new Set((r.tirar || {})[s] || []), extra = ((r.extra || {})[s] || []).map(id => produtos.find(p => p.id === id)).filter(Boolean);
+  const passos = se.passos.filter(p => !tirar.has(p.id));
+  for (const p of extra) if (!passos.includes(p)) passos.push(p);
+  passos.sort((a, b) => ordemDe(a) - ordemDe(b));
+  return Object.assign({}, se, {passos, extras: new Set(extra.map(p => p.id)), tirados: se.passos.filter(p => tirar.has(p.id))});
+}
 function comFaltas(se, s, ctx){
   const fs = [...ctx.sel.faltas.map(f => Object.assign({rec: false}, f)), ...ctx.sel.rec.map(f => Object.assign({rec: true}, f))]
     .filter(f => f.sessoes.includes(s)).map(f => ({falta: f.slot, rec: f.rec, ord: LUGAR[f.slot].ord}));
@@ -235,13 +243,13 @@ function dataDaSemana(dow){ const d = inicioDia(new Date()), atual = (d.getDay()
 
 /* ---------- Vista: Ritual ---------- */
 function resumoPasso(p){ return [tipoCurto(p.tipo), p.qtd].filter(Boolean).map(esc).join(' · '); }
-function infoPasso(p, ctx){
+function infoPasso(p, ctx, extra){
   const v = validadeDe(p);
   return `<div class="mais-info">${p.funcao ? `<span>${esc(p.funcao)}</span>` : ''}
     <span><b>Como:</b> ${esc(modoPadrao(p))}</span>
     ${p.qtd ? `<span><b>Quantidade:</b> ${esc(p.qtd)}</span>` : ''}${p.espera ? `<span><b>Espera:</b> ${esc(p.espera)}</span>` : ''}
     ${p.aviso ? `<span><b>Atenção:</b> ${esc(p.aviso)}</span>` : ''}${v ? `<span class="suave mini">Validade: ${mesAno(v)}</span>` : ''}
-    <span><button class="btn fantasma peq-btn" data-acao="verFrasco" data-id="${p.id}" style="padding:0">Ver frasco ${IC.lupa}</button></span></div>`;
+    <span class="linha"><button class="btn fantasma peq-btn" data-acao="verFrasco" data-id="${p.id}" style="padding:0">Ver frasco ${IC.lupa}</button>${extra ? `<button class="btn fantasma peq-btn" data-acao="tirarExtra" data-id="${p.id}" data-dia="${extra.dia}" data-s="${extra.s}" style="padding:0;color:var(--perigo)">Tirar de hoje</button>` : ''}</span></div>`;
 }
 const TEXTO_NOITE = {
   ret: 'Retinoide esta noite. Aplica com a pele bem seca e não uses esfoliantes.',
@@ -251,15 +259,15 @@ const TEXTO_NOITE = {
 };
 function blocoRitual(ctx){
   const a = agoraRitual(), s = ritualSel || a.s, data = a.data, k = diaChave(data);
-  const se = sessao(data, s, ctx, ctx.plano), reg = registos[k] || {}, feitos = reg[s] || {};
+  const se = passosDoDia(data, s, ctx), reg = registos[k] || {}, feitos = reg[s] || {};
   const titulo = s === 'm' ? 'Ritual da Aurora' : NOITES[se.noite][0];
   const sub = s === 'm' ? 'Limpar, proteger e preparar o dia.' + (ctx.uso.some(p => p.tipo === 'protetor') ? ' O protetor é sempre o último.' : '') : TEXTO_NOITE[se.noite];
   const nFeitos = se.passos.filter(p => feitos[p.id]).length, completo = se.passos.length && nFeitos === se.passos.length;
   const itens = comFaltas(se, s, ctx);
   const passos = itens.map(({p, falta, rec}, i) => falta ? passoFalta(falta, i, rec) : `<div class="passo${feitos[p.id] ? ' feito' : ''}" data-acao="abrirPasso" data-id="${p.id}">
-      <span class="n">${i + 1}</span>${miniFoto(p)}<div class="t"><b>${nomeP(p)}</b><span>${resumoPasso(p)}</span></div>
+      <span class="n">${i + 1}</span>${miniFoto(p)}<div class="t"><b>${nomeP(p)}</b><span>${resumoPasso(p)}${se.extras.has(p.id) ? ' <span class="tag agua">só hoje</span>' : ''}</span></div>
       <button class="marcar" data-acao="marcarPasso" data-id="${p.id}" data-dia="${k}" data-s="${s}" aria-label="Feito">${IC.visto}</button>
-      ${passoAberto === p.id ? infoPasso(p, ctx) : ''}</div>`).join('');
+      ${passoAberto === p.id ? infoPasso(p, ctx, se.extras.has(p.id) ? {dia: k, s} : null) : ''}</div>`).join('');
   return `<div class="abas">
       <button class="${s === 'm' ? 'on' : ''}" data-acao="ritualSel" data-v="m">${IC.sol} Aurora</button>
       <button class="${s === 'n' ? 'on' : ''}" data-acao="ritualSel" data-v="n">${IC.lua} Lua</button></div>
@@ -268,6 +276,8 @@ function blocoRitual(ctx){
       ${itens.length ? `<div class="passos">${passos}</div>` : `<p class="suave centro" style="padding:12px 0">Nada para este ritual. Água fresca e descansa.</p>`}
       ${completo ? `<div class="completo"><b>Ritual completo</b><span class="suave peq">O teu qi fluiu. Mais um passo no caminho.</span></div>`
         : se.passos.length ? `<div class="linha entre" style="margin-top:8px"><span class="suave mini">${nFeitos} de ${se.passos.length} passos</span><button class="btn fantasma peq-btn" data-acao="marcarTudo" data-dia="${k}" data-s="${s}">Marcar tudo</button></div>` : ''}
+      ${se.tirados.length ? `<p class="suave mini" style="margin:6px 0 0">Hoje sem ${se.tirados.map(p => esc(p.nome)).join(', ')}. <button class="btn fantasma peq-btn" data-acao="reporHoje" data-dia="${k}" data-s="${s}" style="min-height:0;padding:0 4px">Repor</button></p>` : ''}
+      <button class="btn largo" data-acao="addHoje" data-dia="${k}" data-s="${s}" style="margin-top:10px">${IC.mais} Usar outro produto hoje</button>
     </div>`;
 }
 function blocoAvisos(ctx){
@@ -296,6 +306,56 @@ function blocoSemana(ctx){
     <div class="legenda" style="margin-top:10px">${tem('ret') ? `<span><i style="background:var(--lua)"></i>Renovação (retinoide)</span>` : ''}${tem('exf') ? `<span><i style="background:var(--ouro)"></i>Purificação (esfoliação)</span>` : ''}
       <span><i style="background:var(--jade)"></i>${tem('ret') || tem('exf') ? 'Repouso' : 'Ritual normal'}</span><span><i style="background:var(--jade);box-shadow:0 0 5px var(--jade)"></i>manhã · noite feitas</span></div></div>`;
 }
+/* ---------- Histórico: o que usaste em cada dia ---------- */
+const nomeUsado = (r, id) => (r.nomes || {})[id] || (produtos.find(p => p.id === id) || {}).nome || 'Produto apagado';
+function usadosEm(r, s){ const f = r[s] || {}; return Object.keys(f).sort((a, b) => f[a] - f[b]).map(id => ({id, nome: nomeUsado(r, id), extra: ((r.extra || {})[s] || []).includes(id)})); }
+const diasComHistorico = () => Object.keys(registos).filter(k => usadosEm(registos[k], 'm').length || usadosEm(registos[k], 'n').length).sort().reverse();
+function rotuloDia(k){
+  const h = inicioDia(new Date()), d = deChave(k), dif = Math.round((h - d) / DIA);
+  return dif === 0 ? 'Hoje' : dif === 1 ? 'Ontem' : `${DIAS_CURTO[d.getDay()]}, ${d.getDate()} ${MESES[d.getMonth()].slice(0, 3)}`;
+}
+function linhaHistorico(k, completo){
+  const r = registos[k], lst = s => { const u = usadosEm(r, s); return u.length ? u.map(x => esc(x.nome) + (x.extra ? ' <span class="tag agua">só neste dia</span>' : '')).join(completo ? '<br>' : ', ') : '<span class="apagado">nada registado</span>'; };
+  const pl = pele.find(x => x.d === k);
+  return `<div class="hist-dia"><div class="linha entre"><b>${rotuloDia(k)}</b><span class="mini suave">${r.mF ? 'manhã completa' : ''}${r.mF && r.nF ? ' · ' : ''}${r.nF ? 'noite completa' : ''}</span></div>
+    <div class="hist-sess"><span class="hist-ic" style="color:var(--ouro)">${IC.sol}</span><div>${lst('m')}</div></div>
+    <div class="hist-sess"><span class="hist-ic" style="color:var(--lua)">${IC.lua}</span><div>${lst('n')}</div></div>
+    ${completo && pl ? `<div class="mini suave" style="margin-top:4px">Pele: ${esc(MEDIDAS[0][2][medidaVal(pl, 'geral')].toLowerCase())}${pl.nota ? ' · ' + esc(pl.nota) : ''}</div>` : ''}</div>`;
+}
+function blocoHistorico(){
+  const ds = diasComHistorico(); if (!ds.length) return '';
+  return `<div class="placa col"><h2>Histórico</h2><p class="suave peq" style="margin:0">O que usaste em cada dia, pela ordem em que marcaste.</p>
+    <div class="lista">${ds.slice(0, 4).map(k => linhaHistorico(k, false)).join('')}</div>
+    ${ds.length > 4 ? `<button class="btn" data-acao="verHistorico">Ver todo o histórico (${ds.length} dias)</button>` : ''}</div>`;
+}
+function folhaHistorico(){
+  const ds = diasComHistorico(); let mes = '', html = '';
+  for (const k of ds){ const m = k.slice(0, 7); if (m !== mes){ mes = m; const d = deChave(k); html += `<h3 style="margin:10px 0 0">${MESES[d.getMonth()]} ${d.getFullYear()}</h3>`; } html += linhaHistorico(k, true); }
+  abrirFolha(`${cab('Histórico')}<p class="suave peq" style="margin:0">Cada dia, de manhã e à noite, o que marcaste como feito.</p><div class="lista">${html || '<p class="suave">Ainda não há registos.</p>'}</div>`, 'historico');
+}
+// Escolher um produto da lista para usar só neste dia.
+function folhaAddHoje(k, s){
+  const ctx = contexto(), se = passosDoDia(deChave(k), s, ctx), ja = new Set(se.passos.map(p => p.id));
+  const disp = produtos.filter(p => !p.fim && !ja.has(p.id));
+  const grupo = (titulo, l, sub) => l.length ? `<h3 style="margin:6px 0 0">${titulo}</h3><div class="lista">${l.map(p => { const c = se.passos.find(o => conflitoEntre(o, p));
+    return `<div class="item" data-acao="escolherHoje" data-id="${p.id}" data-dia="${k}" data-s="${s}">${miniFoto(p)}<div class="t"><b>${nomeP(p)}</b><span>${esc(sub(p))}</span></div>${c ? '<span class="tag aviso">não combina</span>' : ''}</div>`; }).join('')}</div>` : '';
+  const foraM = new Map(ctx.sel.fora.map(f => [f.p, f.motivo])), esp = new Set(ctx.espera.map(e => e.p));
+  abrirFolha(`${cab(s === 'm' ? 'Usar hoje de manhã' : 'Usar hoje à noite')}<p class="suave peq" style="margin:0">Escolhe um dos teus frascos. Entra no ritual só ${k === diaChave(inicioDia(new Date())) ? 'hoje' : 'neste dia'}, no passo certo; amanhã volta tudo ao normal.</p>
+    ${grupo('Da tua rotina, noutros momentos', disp.filter(p => ctx.uso.includes(p)), p => tipoCurto(p.tipo) + ' · ' + quandoTexto(p, ctx, ctx.plano).texto)}
+    ${grupo('Fora da rotina', disp.filter(p => foraM.has(p)), p => tipoCurto(p.tipo))}
+    ${grupo('Em espera, em pausa e outros', disp.filter(p => !ctx.uso.includes(p) && !foraM.has(p)), p => tipoCurto(p.tipo) + (esp.has(p) ? ' · em espera' : p.pausa ? ' · em pausa' : ''))}
+    ${!disp.length ? '<p class="suave">Todos os teus frascos já estão neste ritual.</p>' : ''}`, 'addHoje');
+}
+function folhaConflitoHoje(p, k, s){
+  const ctx = contexto(), se = passosDoDia(deChave(k), s, ctx), cs = se.passos.filter(o => conflitoEntre(o, p));
+  const solManha = s === 'm' && (ehRet(p) || ehExf(p));
+  abrirFolha(`${cab(nomeP(p))}
+    ${cs.map(o => { const c = conflitoEntre(o, p); return `<div class="alerta${c[2] === 'evitar' ? ' perigo' : ''}">${IC.alerta}<div><b>Não combina com ${esc(o.nome)}.</b> ${esc(c[3])}</div></div>`; }).join('')}
+    ${solManha ? `<div class="alerta">${IC.alerta}<div>De manhã, este ativo deixa a pele mais sensível ao sol. Usa protetor e reaplica se estiveres ao sol.</div></div>` : ''}
+    <div class="col">${cs.length ? `<button class="btn jade" data-acao="trocarHoje" data-id="${p.id}" data-dia="${k}" data-s="${s}">Usar em vez de ${esc(cs.map(o => o.nome).join(' e '))}</button>
+      <button class="btn" data-acao="juntarHoje" data-id="${p.id}" data-dia="${k}" data-s="${s}">Juntar na mesma</button>` : `<button class="btn jade" data-acao="juntarHoje" data-id="${p.id}" data-dia="${k}" data-s="${s}">Usar hoje</button>`}
+      <button class="btn fantasma" data-acao="addHoje" data-dia="${k}" data-s="${s}">Escolher outro</button></div>`, 'addHoje');
+}
 function blocoPares(ctx){
   const pares = paresIncompativeis(ctx, ctx.plano); if (!pares.length) return '';
   return `<details class="placa"><summary class="linha entre"><h2 style="margin:0">O que não vai junto <span class="suave peq">(${pares.length})</span></h2>${pares.some(x => x.juntos) ? '<span class="tag perigo">rever</span>' : '<span class="tag">resolvido</span>'}</summary><p class="suave peq" style="margin:10px 0 0">Já separei estes pares no teu plano. Toca para ver porquê.</p>
@@ -323,16 +383,16 @@ function rRitual(){
   if (!cfg.pronto) html += blocoBoasVindas();
   else if (!produtos.length) html += `<div class="placa vazio">${LOTUS}<h2 style="padding:0">O teu ritual começa aqui</h2><p class="suave">Fotografa os cremes, séruns e esfoliantes que tens. O Mestre lê cada rótulo e monta o teu ritual de manhã e de noite.</p>
       <button class="btn jade" data-acao="fotografar">${IC.camara} Fotografar o primeiro frasco</button><button class="btn fantasma peq-btn" data-acao="novoManual">Ou adicionar à mão</button></div>`;
-  else html += blocoRitual(ctx) + blocoAvisos(ctx) + blocoSemana(ctx) + blocoPares(ctx) + blocoReino();
+  else html += blocoRitual(ctx) + blocoAvisos(ctx) + blocoSemana(ctx) + blocoHistorico() + blocoPares(ctx) + blocoReino();
   $('#vRitual').innerHTML = html;
   atualizarTopo();
 }
 function atualizarTopo(){ const r = reino(pontos()); $('#reinoTopo').textContent = produtos.length ? r.nome : ''; }
 function folhaDia(dow){
-  const ctx = contexto(), dt = dataDaSemana(dow), m = sessao(dt, 'm', ctx, ctx.plano), n = sessao(dt, 'n', ctx, ctx.plano);
+  const ctx = contexto(), dt = dataDaSemana(dow), m = passosDoDia(dt, 'm', ctx), n = passosDoDia(dt, 'n', ctx), feito = registos[diaChave(dt)] || {};
   const lista = (se, s) => { const it = comFaltas(se, s, ctx); return it.length ? `<div class="lista">${it.map(({p, falta}, i) => falta
     ? `<div class="item" data-acao="verFalta" data-v="${falta}"><span class="serifa" style="color:var(--aviso);width:16px">${i + 1}</span><span class="mini-foto" style="border-style:dashed;color:var(--aviso)">${iconeTipo(falta)}</span><div class="t"><b style="color:var(--aviso)">Falta: ${esc(SLOTS[falta].nome)}</b><span>Toca para saber o que procurar</span></div></div>`
-    : `<div class="item" data-acao="verFrasco" data-id="${p.id}"><span class="serifa" style="color:var(--ouro);width:16px">${i + 1}</span>${miniFoto(p)}<div class="t"><b>${nomeP(p)}</b><span>${resumoPasso(p)}</span></div></div>`).join('')}</div>` : '<p class="suave">Nada.</p>'; };
+    : `<div class="item" data-acao="verFrasco" data-id="${p.id}"><span class="serifa" style="color:var(--ouro);width:16px">${i + 1}</span>${miniFoto(p)}<div class="t"><b>${nomeP(p)}</b><span>${resumoPasso(p)}${se.extras.has(p.id) ? ' · só neste dia' : ''}</span></div>${(feito[s] || {})[p.id] ? `<span style="color:var(--jade)">${IC.visto}</span>` : ''}</div>`).join('')}</div>` : '<p class="suave">Nada.</p>'; };
   abrirFolha(`${cab(DIAS_LONGO[dow][0].toUpperCase() + DIAS_LONGO[dow].slice(1))}
     <div class="col"><h3 class="linha" style="gap:6px">${IC.sol} Aurora</h3>${lista(m, 'm')}</div>
     <div class="col"><h3 class="linha" style="gap:6px">${IC.lua} ${NOITES[n.noite][0]}${NOITES[n.noite][1] ? ' · ' + NOITES[n.noite][1] : ''}</h3><p class="suave peq" style="margin:0">${TEXTO_NOITE[n.noite]}</p>${lista(n, 'n')}</div>`, 'dia');

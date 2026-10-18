@@ -297,3 +297,8 @@ a.btn { text-decoration: none; }
 .passo.falta.rec .t b { color: var(--agua); }
 .slot.rec { border-style: dashed; border-color: rgba(134, 205, 221, .45); background: rgba(134, 205, 221, .05); }
 .slot.rec > b { color: var(--agua); font-weight: 500; }
+/* ---------- Histórico ---------- */
+.hist-dia { padding: 10px 0; border-top: 1px solid var(--linha); font-size: 13.5px; display: flex; flex-direction: column; gap: 4px; }
+.hist-dia:first-child { border-top: 0; }
+.hist-sess { display: grid; grid-template-columns: 20px 1fr; gap: 8px; align-items: start; color: var(--nevoa); line-height: 1.45; }
+.hist-ic svg { width: 16px; height: 16px; margin-top: 2px; }

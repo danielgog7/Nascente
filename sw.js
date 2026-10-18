@@ -1,5 +1,5 @@
 // Nascente — service worker: a app funciona sem internet e atualiza-se sozinha quando há ligação.
-const CACHE = 'nascente-v7';
+const CACHE = 'nascente-v8';
 const FICHEIROS = ['./', './index.html', './estilo.css', './ia-comum.js', './motor.js', './app.js', './acoes.js', './cormorant.woff2', './cormorant-it.woff2', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

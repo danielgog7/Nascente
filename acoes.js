@@ -48,7 +48,7 @@ const faltasTxt = ctx => [...ctx.sel.faltas.map(f => `${SLOTS[f.slot].nome} (${S
 const registoTxt = r => `${r.d}: geral ${medidaVal(r, 'geral')}, oleosidade ${medidaVal(r, 'oleo')}, secura ${medidaVal(r, 'secura')}, borbulhas ${medidaVal(r, 'borbulhas')}, irritação ${medidaVal(r, 'irritacao')}${(r.sinais || []).length ? '; sinais: ' + r.sinais.join(', ') : ''}${r.nota ? '; nas palavras dele: "' + r.nota + '"' : ''}`;
 const peleTxt = (n, exceto) => pele.filter(r => r.d !== exceto).sort((a, b) => a.d < b.d ? 1 : -1).slice(0, n).reverse().map(registoTxt).join('\n') || '(sem registos)';
 function rotinaTxt(ctx){
-  const a = agoraRitual(), m = sessao(a.data, 'm', ctx, ctx.plano), n = sessao(a.data, 'n', ctx, ctx.plano), nomes = se => se.passos.map(p => p.nome).join(' > ') || '(nada)';
+  const a = agoraRitual(), m = passosDoDia(a.data, 'm', ctx), n = passosDoDia(a.data, 'n', ctx), nomes = se => se.passos.map(p => p.nome).join(' > ') || '(nada)';
   return `Manhã: ${nomes(m)}\nNoite de hoje (${NOITES[n.noite][0]}): ${nomes(n)}\nNa semana: ${ctx.plano.R} noites de retinoide, ${ctx.plano.E} de esfoliação.`;
 }
 const linhaTempoTxt = () => produtos.filter(p => p.inicio || p.fim).map(p => `- [${p.id}] ${p.nome}: entrou na rotina ${p.inicio || '?'}${p.saida ? ', saiu da rotina ' + p.saida : ''}${p.fim ? ', acabou ' + p.fim : ''}${p.pausa ? ', em pausa' : ''}`).join('\n') || '(sem datas)';
@@ -347,7 +347,7 @@ function folhaAcabou(p, lugares = []){
 
 /* ---------- Ritual ---------- */
 function verificarCompleto(dia, s, el){
-  const ctx = contexto(), se = sessao(deChave(dia), s, ctx, ctx.plano), r = registos[dia], feitos = r[s] || {};
+  const ctx = contexto(), se = passosDoDia(deChave(dia), s, ctx), r = registos[dia], feitos = r[s] || {};
   const tudo = se.passos.length && se.passos.every(p => feitos[p.id]);
   if (tudo && !r[s + 'F']){
     const antes = reino(pontos()).i; r[s + 'F'] = Date.now(); const depois = reino(pontos());
@@ -361,16 +361,32 @@ function marcarPasso(el){
   else {
     f[id] = Date.now(); vibrar(12);
     const p = produtos.find(x => x.id === id);
+    if (p) r.nomes = Object.assign({}, r.nomes, {[id]: p.nome});
     if (p && !p.aberto){ p.aberto = dia; p.atualizado = Date.now(); guardarProdutos(); }
   }
   r.ts = Date.now(); verificarCompleto(dia, s, el); guardarRegistos(); rRitual();
 }
 function marcarTudo(el){
-  const {dia, s} = el.dataset, ctx = contexto(), se = sessao(deChave(dia), s, ctx, ctx.plano), r = registos[dia] = registos[dia] || {}, f = r[s] = r[s] || {};
+  const {dia, s} = el.dataset, ctx = contexto(), se = passosDoDia(deChave(dia), s, ctx), r = registos[dia] = registos[dia] || {}, f = r[s] = r[s] || {};
   let mud = false;
-  for (const p of se.passos){ if (!f[p.id]) f[p.id] = Date.now(); if (!p.aberto){ p.aberto = dia; p.atualizado = Date.now(); mud = true; } }
+  r.nomes = Object.assign({}, r.nomes);
+  for (const p of se.passos){ r.nomes[p.id] = p.nome; if (!f[p.id]) f[p.id] = Date.now(); if (!p.aberto){ p.aberto = dia; p.atualizado = Date.now(); mud = true; } }
   if (mud) guardarProdutos();
   r.ts = Date.now(); verificarCompleto(dia, s, el); guardarRegistos(); rRitual();
+}
+function usarHoje(p, dia, s, trocar){
+  const ctx = contexto(), se = passosDoDia(deChave(dia), s, ctx), r = registos[dia] = registos[dia] || {};
+  r.extra = Object.assign({m: [], n: []}, r.extra); r.extra[s] = [...new Set([...(r.extra[s] || []), p.id])];
+  if (trocar){
+    const sai = se.passos.filter(o => conflitoEntre(o, p)).map(o => o.id);
+    r.extra[s] = r.extra[s].filter(id => !sai.includes(id));  // um extra que não combina simplesmente sai
+    r.tirar = Object.assign({m: [], n: []}, r.tirar); r.tirar[s] = [...new Set([...(r.tirar[s] || []), ...sai.filter(id => se.extras ? !se.extras.has(id) : true)])];
+    if (r[s]) for (const id of sai) delete r[s][id];
+  }
+  r.ts = Date.now(); delete r[s + 'F']; guardarRegistos(); fecharFolha();
+  ritualSel = s; rRitual();
+  const n = passosDoDia(deChave(dia), s, contexto()).passos.indexOf(p) + 1;
+  toast(`${p.nome} entra no ritual ${s === 'm' ? 'da manhã' : 'da noite'}${n ? ', no passo ' + n : ''}. Só neste dia.`, 3800);
 }
 function festa(titulo, sub){
   const d = document.createElement('div'); d.className = 'festa'; d.innerHTML = `<div>${esc(titulo)}<small>${esc(sub)}</small></div>`;
@@ -607,6 +623,23 @@ const ACOES = {
   ritualSel(el){ ritualSel = el.dataset.v; passoAberto = null; rRitual(); },
   abrirPasso(el){ passoAberto = passoAberto === el.dataset.id ? null : el.dataset.id; rRitual(); },
   marcarPasso, marcarTudo,
+  addHoje: el => folhaAddHoje(el.dataset.dia, el.dataset.s),
+  escolherHoje(el){
+    const {id, dia, s} = el.dataset, p = produtos.find(x => x.id === id); if (!p) return;
+    const ctx = contexto(), se = passosDoDia(deChave(dia), s, ctx);
+    if (se.passos.some(o => conflitoEntre(o, p)) || (s === 'm' && (ehRet(p) || ehExf(p)))) return folhaConflitoHoje(p, dia, s);
+    usarHoje(p, dia, s, false);
+  },
+  juntarHoje(el){ const p = produtos.find(x => x.id === el.dataset.id); if (p) usarHoje(p, el.dataset.dia, el.dataset.s, false); },
+  trocarHoje(el){ const p = produtos.find(x => x.id === el.dataset.id); if (p) usarHoje(p, el.dataset.dia, el.dataset.s, true); },
+  tirarExtra(el){
+    const {id, dia, s} = el.dataset, r = registos[dia]; if (!r || !r.extra) return;
+    r.extra[s] = (r.extra[s] || []).filter(x => x !== id); if (r[s]) delete r[s][id];
+    r.ts = Date.now(); passoAberto = null; verificarCompleto(dia, s); guardarRegistos(); rRitual();
+  },
+  reporHoje(el){ const {dia, s} = el.dataset, r = registos[dia]; if (!r || !r.tirar) return; r.tirar[s] = []; r.ts = Date.now(); verificarCompleto(dia, s); guardarRegistos(); rRitual(); },
+  verHistorico: folhaHistorico,
+
   verDia: el => folhaDia(+el.dataset.v),
   fotografar,
   novoManual(){ rascunho = novoRascunho(); folhaEditar(); },

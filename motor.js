@@ -170,52 +170,131 @@ function motivoFora(p, precisa, rotina){
   const outros = rotina.filter(o => !ESSENCIAIS.includes(o.tipo) && meus.some(c => forcaPara(o)[c]));
   return outros.length ? `Já tens ${lista(outros.slice(0, 2).map(o => o.nome))} para ${lista(meus.slice(0, 2).map(c => PREOC_CURTO[c]))}. Não precisas dos dois.` : 'A tua rotina já trata disso. Seria um passo a mais.';
 }
+// Lugares da rotina. Os essenciais existem sempre; os outros entram quando a pele precisa (e aparecem como "recomendado" se não tiveres um produto para eles).
+const LUGAR = {
+  limpeza: {sess: ['m', 'n'], ord: 2050}, serumDia: {sess: ['m'], ord: 5050}, ativoNoite: {sess: ['n'], ord: 5040}, olhos: {sess: ['m', 'n'], ord: 7050},
+  reparador: {sess: ['n'], ord: 7500}, oleo: {sess: ['n'], ord: 8550}, hidratante: {sess: ['m', 'n'], ord: 8050}, protetor: {sess: ['m'], ord: 9050}, mascara: {sess: ['n'], ord: 3550}
+};
+const RENOVA = ['acne', 'pontos', 'manchas', 'rugas', 'textura', 'poros', 'oleosidade'];
+const BASE_REPARA = {calmante: 2, ceramidas: 2, hialuronico: 1.5, ureia: 1, peptidos: 1, cobre: 1, niacinamida: .8};
+const idxPrio = p => { const i = PRIORIDADE.indexOf(ativoPrincipal(p)); return i < 0 ? 99 : i; };
+const sessDeQuando = q => q === 'manha' ? ['m'] : q === 'noite' ? ['n'] : ['m', 'n'];
+
 function escolherRotina(uso, cfg, pele, hoje){
-  const {n: precisa, origem} = necessidades(cfg, pele, hoje), resto = Object.assign({}, precisa);
-  const rotina = [], fora = [], livres = [], cand = [], porque = {};
-  const aplicar = p => { for (const [c, v] of Object.entries(forcaPara(p))) if (resto[c]) resto[c] = Math.max(0, resto[c] - v); };
-  // Um problema conta como tratado quando falta no máximo 1 ponto: um bom tratamento por problema chega.
-  const ganho = p => Object.entries(forcaPara(p)).reduce((s, [c, v]) => s + ((resto[c] || 0) >= 2 ? Math.min(resto[c], v) : 0), 0);
-  const tratados = p => Object.keys(forcaPara(p)).filter(c => precisa[c]).map(c => PREOC_CURTO[c]);
+  const {n: precisa, origem} = necessidades(cfg, pele, hoje);
+  const rotina = [], fora = [], livres = [], cand = [], porque = {}, papel = {}, lugares = {}, onde = {}, rec = [];
+  const so = (o, ks) => Object.fromEntries(Object.entries(o).filter(([c]) => ks.includes(c)));
+  const cobre = (p, needs) => Object.entries(forcaPara(p)).reduce((t, [c, v]) => t + Math.min(needs[c] || 0, v), 0);
+  const bonus = p => (p.veredicto === 'essencial' ? 5 : p.veredicto === 'util' ? .5 : 0) + (p.naRotina ? .3 : 0);
+  const tratados = (p, needs = precisa) => Object.keys(forcaPara(p)).filter(c => needs[c]).map(c => PREOC_CURTO[c]);
+  const lista = l => l.length > 1 ? l.slice(0, -1).join(', ') + ' e ' + l[l.length - 1] : (l[0] || '');
+  const melhor = (ps, sc) => { let m = null, ms = 0; for (const p of ps){ const v = sc(p); if (v > ms || (m && v === ms && v > 0 && idxPrio(p) < idxPrio(m))){ m = p; ms = v; } } return m; };
+  const pôr = (p, lugar, sess, txt) => {
+    if (!rotina.includes(p)) rotina.push(p);
+    papel[p.id] = papel[p.id] || lugar; lugares[p.id] = [...new Set([...(lugares[p.id] || []), lugar])]; onde[p.id] = [...new Set([...(onde[p.id] || []), ...sess])];
+    if (!porque[p.id]) porque[p.id] = txt;
+    const i = cand.indexOf(p); if (i >= 0) cand.splice(i, 1);
+  };
+  const tem = c => (precisa[c] || 0) > 0, sensivel = cfg.sensivel || cfg.pele === 'sensivel';
+
   for (const p of uso){
     if (p.tipo === 'labios' && p.forcar !== 'usar'){ livres.push(p); continue; }
     if (p.forcar === 'nao'){ fora.push({p, motivo: 'Tiraste-o da rotina.'}); continue; }
-    if (p.forcar === 'usar'){ rotina.push(p); porque[p.id] = 'Escolheste usá-lo.'; continue; }
-    if (p.porLer){ fora.push({p, motivo: 'Ainda por ler: o Mestre ainda não identificou este frasco.'}); continue; }
-    if (p.veredicto === 'evitar'){ fora.push({p, motivo: 'O Mestre desaconselha-o para a tua pele.'}); continue; }
-    if (p.veredicto === 'dispensavel'){ fora.push({p, motivo: 'O Mestre considera-o dispensável para a tua pele.'}); continue; }
+    if (p.porLer && p.forcar !== 'usar'){ fora.push({p, motivo: 'Ainda por ler: o Mestre ainda não identificou este frasco.'}); continue; }
+    if (p.veredicto === 'evitar' && p.forcar !== 'usar'){ fora.push({p, motivo: 'O Mestre desaconselha-o para a tua pele.'}); continue; }
+    if (p.veredicto === 'dispensavel' && p.forcar !== 'usar'){ fora.push({p, motivo: 'O Mestre considera-o dispensável para a tua pele.'}); continue; }
     cand.push(p);
   }
-  // 1. Essenciais: limpeza, hidratante e protetor (a fila já deixou só um de cada função).
-  const limps = cand.filter(p => p.tipo === 'limpeza'), suaves = limps.filter(p => !medicada(p));
-  const essenciais = [...(suaves.length ? suaves : limps.slice(0, 1)), ...cand.filter(p => p.tipo === 'hidratante' || p.tipo === 'protetor')];
-  if (!limps.length){ const d = cand.find(p => p.tipo === 'desmaq'); if (d) essenciais.push(d); }
-  for (const p of essenciais){ rotina.push(p); porque[p.id] = 'Essencial: ' + tipoCurtoM(p.tipo).toLowerCase() + '.'; cand.splice(cand.indexOf(p), 1); }
-  for (const p of cand.filter(p => p.veredicto === 'essencial')){ rotina.push(p); porque[p.id] = 'O Mestre considera-o essencial para a tua pele.'; cand.splice(cand.indexOf(p), 1); }
-  rotina.forEach(aplicar);
-  // 2. Tratamentos: escolhe o que trata mais do que ainda falta; para quando já está tudo coberto.
-  for (let n = 0; n < 5; n++){
-    let melhor = null, mg = 0;
-    for (const p of cand){
-      const g = ganho(p); if (g <= 0) continue;
-      const desempata = melhor && g === mg && ((p.naRotina ? 1 : 0) - (melhor.naRotina ? 1 : 0) || PRIORIDADE.indexOf(ativoPrincipal(melhor)) - PRIORIDADE.indexOf(ativoPrincipal(p))) > 0;
-      if (g > mg || desempata){ melhor = p; mg = g; }
-    }
-    if (!melhor) break;
-    porque[melhor.id] = 'Trata: ' + tratados(melhor).slice(0, 3).join(', ') + '.';
-    aplicar(melhor); rotina.push(melhor); cand.splice(cand.indexOf(melhor), 1);
+
+  // 1. Essenciais: limpeza, hidratante e protetor solar.
+  const limps = cand.filter(p => p.tipo === 'limpeza'), suaves = limps.filter(p => !medicada(p)), meds = limps.filter(medicada);
+  const querMed = tem('acne') || tem('pontos') || (tem('oleosidade') && origem.oleosidade !== 'tipo');
+  if (suaves.length && meds.length && querMed){
+    pôr(meds[0], 'limpeza', ['m'], 'Gel de limpeza da manhã: ajuda nas ' + lista(tratados(meds[0]).slice(0, 2)) + '.');
+    pôr(suaves[0], 'limpeza', ['n'], 'Essencial: gel de limpeza suave para a noite.');
+  } else if (suaves.length || meds.length){
+    const l = suaves[0] || meds[0]; pôr(l, 'limpeza', ['m', 'n'], 'Essencial: gel de limpeza.');
+  } else { const d = cand.find(p => p.tipo === 'desmaq'); if (d) pôr(d, 'limpeza', ['n'], 'Limpeza da noite.'); }
+  const hids = cand.filter(p => p.tipo === 'hidratante');
+  if (hids.length === 1) pôr(hids[0], 'hidratante', temAtivo(hids[0], 'spf') ? ['m'] : ['m', 'n'], 'Essencial: hidratante.');
+  else if (hids.length > 1){
+    const m = hids.find(p => p.quando === 'manha' || temAtivo(p, 'spf')) || hids.find(p => p.quando !== 'noite') || hids[0];
+    const n = hids.find(p => p !== m && !temAtivo(p, 'spf') && p.quando !== 'manha') || hids.find(p => p !== m && !temAtivo(p, 'spf'));
+    pôr(m, 'hidratante', n ? ['m'] : (temAtivo(m, 'spf') ? ['m'] : ['m', 'n']), 'Essencial: hidratante' + (n ? ' de dia.' : '.'));
+    if (n) pôr(n, 'hidratante', ['n'], 'Essencial: hidratante de noite.');
   }
-  for (const p of cand) fora.push({p, motivo: motivoFora(p, precisa, rotina)});
-  // 3. O que falta na rotina base (por sessão).
-  const tem = (s, f) => rotina.some(p => { const q = quandoEfetivo(p, rotina); return (q === 'ambos' || q === (s === 'm' ? 'manha' : 'noite')) && f(p, s); });
+  const prot = cand.find(p => p.tipo === 'protetor'); if (prot) pôr(prot, 'protetor', ['m'], 'Essencial: protetor solar.');
+
+  // 2. Tratamento de noite: retinoide e/ou esfoliante, em noites alternadas.
+  const needsN = so(precisa, RENOVA), recN = Object.keys(needsN).length > 0;
+  const okN = p => ['serum', 'tratamento', 'tonico', 'esfoliante', 'mascara'].includes(p.tipo) && (ehRet(p) || ehExf(p) || ['azelaico', 'peroxido', 'enxofre', 'bakuchiol', 'despigmentante'].some(a => temAtivo(p, a)));
+  const n1 = melhor(cand.filter(okN), p => { const c = cobre(p, needsN); return c > 0 ? c + (ehRet(p) ? 1 : 0) + bonus(p) : 0; });
+  if (n1){
+    pôr(n1, 'ativoNoite', ['n'], 'Tratamento de noite: ' + lista(tratados(n1, needsN).slice(0, 3)) + '.');
+    if (!sensivel){
+      const resto = Object.assign({}, needsN); for (const [c, v] of Object.entries(forcaPara(n1))) if (resto[c]) resto[c] = Math.max(0, resto[c] - v);
+      const outro = cand.filter(okN).filter(p => ehRet(n1) ? ehExf(p) && !ehRet(p) : ehRet(p));
+      const n2 = melhor(outro, p => cobre(p, resto) >= 1 ? cobre(p, resto) + bonus(p) : 0);
+      if (n2) pôr(n2, 'ativoNoite', ['n'], 'Tratamento de noite, alternado com ' + n1.nome + ': ' + lista(tratados(n2, needsN).slice(0, 3)) + '.');
+    }
+  } else if (recN) rec.push({slot: 'ativoNoite', sessoes: ['n']});
+
+  // 3. Sérum de dia: trata durante o dia (vitamina C, niacinamida, ácido azelaico…).
+  const okM = p => ['serum', 'tratamento', 'tonico'].includes(p.tipo) && ativosDe(p).length && !ehRet(p) && !ehExf(p) && ((p.quando || TIPOS[p.tipo][2]) !== 'noite' || temAtivo(p, 'vitc'));
+  const recM = Object.keys(precisa).length > 0;
+  const m1 = melhor(cand.filter(okM), p => { const c = cobre(p, precisa); return c > 0 ? c + bonus(p) : 0; });
+  if (m1){
+    pôr(m1, 'serumDia', ['m'], 'Sérum de dia: ' + lista(tratados(m1).slice(0, 3)) + '.');
+    const resto = Object.assign({}, precisa); for (const [c, v] of Object.entries(forcaPara(m1))) if (resto[c]) resto[c] = Math.max(0, resto[c] - v);
+    for (const p of rotina) if (papel[p.id] === 'ativoNoite') for (const [c, v] of Object.entries(forcaPara(p))) if (resto[c]) resto[c] = Math.max(0, resto[c] - v);
+    const m2 = melhor(cand.filter(okM), p => cobre(p, resto) >= 2 ? cobre(p, resto) + bonus(p) : 0);
+    if (m2) pôr(m2, 'serumDia', ['m'], 'Sérum de dia: ' + lista(tratados(m2).slice(0, 3)) + '.');
+  } else if (recM) rec.push({slot: 'serumDia', sessoes: ['m']});
+
+  // 4. Sérum reparador de noite: acalma e reconstrói a barreira (sobretudo com retinoide ou ácidos).
+  const comAtivos = rotina.some(p => papel[p.id] === 'ativoNoite');
+  const recR = comAtivos || tem('desidratacao') || tem('vermelhidao') || cfg.pele === 'seca' || sensivel;
+  const okR = p => ['serum', 'tratamento', 'tonico'].includes(p.tipo) && !ehRet(p) && !ehExf(p) && !temAtivo(p, 'peroxido') && ativosDe(p).some(a => BASE_REPARA[a]);
+  const needsR = so(precisa, ['desidratacao', 'vermelhidao', 'rugas']);
+  const scR = p => { const c = cobre(p, needsR), base = Math.max(...ativosDe(p).map(a => BASE_REPARA[a] || 0)); return recR || c > 0 ? c + base + bonus(p) : 0; };
+  const r1 = melhor(cand.filter(okR), scR) || (recR ? melhor(rotina.filter(p => papel[p.id] === 'serumDia' && okR(p) && !temAtivo(p, 'vitc')), scR) : null);
+  if (r1) pôr(r1, 'reparador', ['n'], porque[r1.id] ? porque[r1.id] : 'Sérum reparador: acalma e protege a barreira' + (tratados(r1, needsR).length ? '; trata ' + lista(tratados(r1, needsR)) : '') + '.');
+  else if (recR) rec.push({slot: 'reparador', sessoes: ['n']});
+
+  // 5. Contorno de olhos, óleo/máscara de noite e máscara semanal: só se a pele pedir.
+  const o1 = melhor(cand.filter(p => p.tipo === 'olhos'), p => { const c = cobre(p, so(precisa, ['olheiras', 'rugas'])); return c > 0 ? c + bonus(p) : 0; });
+  if (o1) pôr(o1, 'olhos', sessDeQuando(o1.quando), 'Contorno de olhos: ' + lista(tratados(o1).slice(0, 2)) + '.');
+  else if (tem('olheiras')) rec.push({slot: 'olhos', sessoes: ['m', 'n']});
+  if ((precisa.desidratacao || 0) >= 2){ const ol = melhor(cand.filter(p => p.tipo === 'oleo' || p.tipo === 'mascaraNoite'), p => cobre(p, precisa) + bonus(p)); if (ol) pôr(ol, 'oleo', ['n'], 'Nutrição de noite para a pele seca.'); }
+  const fortes = Object.fromEntries(Object.entries(precisa).filter(([c]) => origem[c] !== 'tipo'));
+  const mk = melhor(cand.filter(ehMascara), p => { const c = cobre(p, fortes); return c > 0 ? c + bonus(p) : 0; });
+  if (mk) pôr(mk, 'mascara', ['n'], 'Máscara semanal: ' + lista(tratados(mk, fortes).slice(0, 2)) + '.');
+
+  // 6. Escolhas manuais e o que o Mestre considera essencial.
+  for (const p of cand.slice()) if (p.forcar === 'usar' || p.veredicto === 'essencial') pôr(p, 'extra', sessDeQuando(quandoEfetivo(p, rotina)), p.forcar === 'usar' ? 'Escolheste usá-lo.' : 'O Mestre considera-o essencial para a tua pele.');
+
+  // 7. O resto fica de fora, com o motivo.
+  const lugarDe = p => okN(p) ? 'ativoNoite' : okM(p) ? 'serumDia' : okR(p) ? 'reparador' : p.tipo === 'hidratante' ? 'hidratante' : p.tipo === 'limpeza' ? 'limpeza' : p.tipo === 'protetor' ? 'protetor' : p.tipo === 'olhos' ? 'olhos' : '';
+  const NOME_LUGAR = {ativoNoite: 'tratamento de noite', serumDia: 'sérum de dia', reparador: 'sérum reparador', hidratante: 'hidratante', limpeza: 'limpeza', protetor: 'protetor solar', olhos: 'contorno de olhos'};
+  for (const p of cand){
+    const l = lugarDe(p), dono = l && rotina.find(o => papel[o.id] === l);
+    const util = cobre(p, precisa) > 0;
+    fora.push({p, motivo: dono && (util || ESSENCIAIS.includes(l)) ? `Já usas ${dono.nome} como ${NOME_LUGAR[l]}. Não precisas dos dois ao mesmo tempo.` : motivoFora(p, precisa, rotina)});
+  }
+
+  // 8. O que falta na rotina base e o que cada problema tem a tratá-lo.
+  const sessoesDe = p => onde[p.id] || sessDeQuando(quandoEfetivo(p, rotina));
+  const temEm = (s, f) => rotina.some(p => sessoesDe(p).includes(s) && f(p, s));
   const faltas = [
-    ['limpeza', (p) => p.tipo === 'limpeza' || p.tipo === 'desmaq', ['m', 'n']],
-    ['hidratante', (p, s) => p.tipo === 'hidratante' || (s === 'n' && p.tipo === 'mascaraNoite'), ['m', 'n']],
-    ['protetor', (p) => p.tipo === 'protetor' || temAtivo(p, 'spf'), ['m']]
-  ].map(([slot, f, ss]) => ({slot, sessoes: ss.filter(s => !tem(s, f))})).filter(x => x.sessoes.length);
+    ['limpeza', p => p.tipo === 'limpeza' || p.tipo === 'desmaq', ['m', 'n']],
+    ['hidratante', (p, s) => p.tipo === 'hidratante' || (s === 'n' && (p.tipo === 'mascaraNoite' || p.tipo === 'oleo')), ['m', 'n']],
+    ['protetor', p => p.tipo === 'protetor' || temAtivo(p, 'spf'), ['m']]
+  ].map(([slot, f, ss]) => ({slot, sessoes: ss.filter(x => !temEm(x, f))})).filter(x => x.sessoes.length);
+  const resto = Object.assign({}, precisa);
+  for (const p of rotina) for (const [c, v] of Object.entries(forcaPara(p))) if (resto[c]) resto[c] = Math.max(0, resto[c] - v);
   const porCobrir = Object.entries(resto).filter(([, v]) => v >= 2).map(([c, v]) => ({c, falta: v, origem: origem[c]}));
   const cobertura = Object.keys(precisa).map(c => ({c, origem: origem[c], por: rotina.filter(p => forcaPara(p)[c]), falta: resto[c]}));
-  return {rotina, fora, livres, faltas, porCobrir, cobertura, precisa, porque};
+  return {rotina, fora, livres, faltas, rec, porCobrir, cobertura, precisa, porque, papel, lugares, onde};
 }
 const tipoCurtoM = t => (TIPOS[t] || TIPOS.outro)[0].split(/ [\/(]/)[0];
 
@@ -330,8 +409,8 @@ function sessao(data, s, ctx, plano){
   const dow = data.getDay(), noite = plano.noites[dow], notas = [];
   let passos = [];
   for (const p of ctx.uso){
-    const q = quandoEfetivo(p, ctx.uso);
-    if ((s === 'm' && q === 'noite') || (s === 'n' && q === 'manha')) continue;
+    const q = quandoEfetivo(p, ctx.uso), onde = ctx.sel && ctx.sel.onde[p.id];
+    if (onde ? !onde.includes(s) : ((s === 'm' && q === 'noite') || (s === 'n' && q === 'manha'))) continue;
     if (ehRet(p) && noite !== 'ret') continue;
     if (ehExf(p) && plano.exfDia[dow] !== p.id) continue;
     if (ehMascara(p) && !(plano.mascaraDias[p.id] || []).includes(dow)) continue;

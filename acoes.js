@@ -30,7 +30,7 @@ function chaveDeOutraApp(){
 
 /* ---------- Textos de contexto para o Mestre ---------- */
 const PT = 'Escreve em português de Portugal (PT-PT, nunca do Brasil): trata o utilizador por "tu" e usa termos de Portugal (creme, protetor solar, borbulhas, farmácia, parafarmácia).';
-const MESTRE = 'És o Mestre da Nascente: um sábio sereno com conhecimentos profundos de dermatologia e cosmética (ao nível de um farmacêutico e de um dermatologista). Falas com calma e clareza, com um toque subtil de mestre de cultivo wuxia (no máximo uma imagem poética curta, nunca à custa da clareza). Dás conselhos práticos, seguros e baseados em evidência. Defendes rotinas simples: só o essencial (limpeza, hidratante e protetor solar) e um tratamento para cada problema que a pessoa tem de facto; nunca acrescentas produtos só porque existem ou porque ela já os tem. Não receitas medicamentos sujeitos a receita médica; se houver acne grave (nódulos ou quistos dolorosos), sinais de infeção, reação alérgica forte, ou algo que não melhora em 8 a 12 semanas, recomendas um dermatologista.';
+const MESTRE = 'És o Mestre da Nascente: um sábio sereno com conhecimentos profundos de dermatologia e cosmética (ao nível de um farmacêutico e de um dermatologista). Falas com calma e clareza, com um toque subtil de mestre de cultivo wuxia (no máximo uma imagem poética curta, nunca à custa da clareza). Dás conselhos práticos, seguros e baseados em evidência. Defendes rotinas completas mas sem excessos: de manhã limpeza, um sérum de dia quando há algo a tratar, hidratante e protetor solar; à noite limpeza, um tratamento (retinoide ou ácidos, em noites alternadas) quando a pele precisa, um sérum reparador e hidratante. Nunca acrescentas produtos para problemas que a pessoa não tem. Não receitas medicamentos sujeitos a receita médica; se houver acne grave (nódulos ou quistos dolorosos), sinais de infeção, reação alérgica forte, ou algo que não melhora em 8 a 12 semanas, recomendas um dermatologista.';
 const perfilTxt = () => `${PELES[cfg.pele] || 'tipo não indicado'}${cfg.sensivel ? ', reage facilmente (sensível)' : ''}; preocupações: ${cfg.preocupacoes.map(k => PREOCUPACOES[k]).filter(Boolean).join(', ') || 'nenhuma indicada'}.`;
 const produtoTxt = p => `${p.nome}${p.marca ? ' (' + p.marca + ')' : ''}: ${(TIPOS[p.tipo] || TIPOS.outro)[0]}; ativos: ${ativosDe(p).map(a => ATIVOS[a]).join(', ') || 'sem ativos fortes'}${p.conc ? '; ' + p.conc : ''}`;
 function inventarioTxt(ctx){
@@ -44,7 +44,7 @@ function inventarioTxt(ctx){
 }
 const ORIGEM_TXT = {perfil: 'marcado no perfil', tipo: 'pelo tipo de pele', registos: 'visto nos registos'};
 const necessidadesTxt = ctx => ctx.sel.cobertura.map(c => `${PREOC_CURTO[c.c]} (${ORIGEM_TXT[c.origem]}): ${c.por.length ? 'tratado com ' + c.por.map(p => p.nome).join(', ') : 'sem tratamento'}`).join('; ') || 'nenhuma preocupação ativa: só o essencial';
-const faltasTxt = ctx => ctx.sel.faltas.map(f => `${SLOTS[f.slot].nome} (${SESS_TXT(f.sessoes)})`).join(', ') || 'nada';
+const faltasTxt = ctx => [...ctx.sel.faltas.map(f => `${SLOTS[f.slot].nome} (${SESS_TXT(f.sessoes)}, essencial)`), ...ctx.sel.rec.map(f => `${SLOTS[f.slot].nome} (${SESS_TXT(f.sessoes)}, recomendado)`)].join(', ') || 'nada';
 const registoTxt = r => `${r.d}: geral ${medidaVal(r, 'geral')}, oleosidade ${medidaVal(r, 'oleo')}, secura ${medidaVal(r, 'secura')}, borbulhas ${medidaVal(r, 'borbulhas')}, irritação ${medidaVal(r, 'irritacao')}${(r.sinais || []).length ? '; sinais: ' + r.sinais.join(', ') : ''}${r.nota ? '; nas palavras dele: "' + r.nota + '"' : ''}`;
 const peleTxt = (n, exceto) => pele.filter(r => r.d !== exceto).sort((a, b) => a.d < b.d ? 1 : -1).slice(0, n).reverse().map(registoTxt).join('\n') || '(sem registos)';
 function rotinaTxt(ctx){
@@ -330,14 +330,14 @@ function guardarFrasco(){
   const foraI = ctx.sel.fora.find(f => f.p === p);
   toast(esp ? `${p.nome} fica em espera: entra quando ${esp.depois.nome} acabar.` : foraI ? `${p.nome} fica fora da rotina: ${foraI.motivo}` : ctx.uso.includes(p) ? `${p.nome}: ${quandoTexto(p, ctx, ctx.plano).texto}.` : `${p.nome} guardado.`, 4800);
 }
-function folhaAcabou(p){
+function folhaAcabou(p, lugares = []){
   const ctx = contexto(), seguinte = ctx.uso.find(o => o !== p && chaveFila(o) === chaveFila(p)) || ctx.uso.find(o => o.tipo === p.tipo && ESSENCIAIS.includes(p.tipo));
-  const falta = ctx.sel.faltas.find(f => f.slot === p.tipo || (f.slot === 'limpeza' && p.tipo === 'desmaq'));
+  const falta = ctx.sel.faltas.find(f => f.slot === p.tipo || (f.slot === 'limpeza' && p.tipo === 'desmaq')) || ctx.sel.rec.find(f => lugares.includes(f.slot));
   const lista = ctx.uso.slice().sort((a, b) => ordemDe(a) - ordemDe(b));
   let corpo;
   if (seguinte) corpo = `<p>Passa a usar o <b>${nomeP(seguinte)}</b>. Já entrou no teu ritual, no mesmo lugar.</p>`;
-  else if (falta) corpo = `<p>Precisas de um novo <b>${esc(SLOTS[falta.slot].nome.toLowerCase())}</b> para ${SESS_TXT(falta.sessoes)}: é um passo essencial do teu ritual.</p>
-    <div class="resposta-mestre"><span class="quem">O que procurar</span>${esc(SLOTS[falta.slot].procurar[PELES[cfg.pele] ? cfg.pele : 'normal'])}</div>
+  else if (falta) corpo = `<p>${SLOTS[falta.slot].rec ? 'Recomendo' : 'Precisas de'} um novo <b>${esc(SLOTS[falta.slot].nome.toLowerCase())}</b> para ${SESS_TXT(falta.sessoes)}${SLOTS[falta.slot].rec ? ': a tua pele ainda precisa deste passo.' : ': é um passo essencial do teu ritual.'}</p>
+    <div class="resposta-mestre"><span class="quem">O que procurar</span>${esc(procurarLugar(falta.slot, ctx)[0])}</div>
     <div class="botoes"><button class="btn ouro" data-acao="verificar" data-v="${falta.slot}">${IC.camara} Verificar um produto</button>
     <a class="btn" href="${procurarURL(p.marca ? p.marca + ' ' + p.nome : p.nome)}" target="_blank" rel="noopener">${IC.lupa} Procurar o mesmo</a></div>`;
   else corpo = `<p>Não precisas de o substituir. ${lista.length ? 'Continua só com estes:' : ''}</p>${lista.length ? `<div class="lista">${lista.map(o => `<div class="item">${miniFoto(o)}<div class="t"><b>${nomeP(o)}</b><span>${esc(tipoCurto(o.tipo))}</span></div></div>`).join('')}</div>` : ''}`;
@@ -625,7 +625,7 @@ const ACOES = {
   guardarFrasco,
   verFrasco: el => folhaFrasco(el.dataset.id),
   editar(el){ const p = produtos.find(x => x.id === el.dataset.id); if (!p) return; rascunho = novoRascunho(Object.assign(JSON.parse(JSON.stringify(p)), {foto: fotos[p.id] || '', fotoNova: false, fotosIA: [], duvida: '', adequado: ''})); folhaEditar(); },
-  acabou(el){ const p = produtos.find(x => x.id === el.dataset.id); if (!p) return; p.fim = diaChave(new Date()); p.atualizado = Date.now(); guardarProdutos(); renderAtual(); folhaAcabou(p); },
+  acabou(el){ const p = produtos.find(x => x.id === el.dataset.id); if (!p) return; const lug = (selAtual && selAtual.lugares[p.id]) || []; p.fim = diaChave(new Date()); p.atualizado = Date.now(); guardarProdutos(); renderAtual(); folhaAcabou(p, lug); },
   reativar(el){ const p = produtos.find(x => x.id === el.dataset.id); if (!p) return; delete p.fim; p.atualizado = Date.now(); guardarProdutos(); renderAtual(); folhaFrasco(p.id); },
   usarAgora(el){ const p = produtos.find(x => x.id === el.dataset.id); if (!p) return; p.agora = Date.now(); p.atualizado = Date.now(); guardarProdutos(); renderAtual(); folhaFrasco(p.id); toast('Passou para uso. O outro fica em espera.'); },
   abriHoje(el){ const p = produtos.find(x => x.id === el.dataset.id); if (!p) return; p.aberto = diaChave(new Date()); p.atualizado = Date.now(); guardarProdutos(); folhaFrasco(p.id); },

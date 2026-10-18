@@ -98,6 +98,29 @@ const SLOTS = {
       seca: 'SPF 50, largo espectro (UVA e UVB), em creme hidratante.', sensivel: 'SPF 50 para pele sensível, sem perfume (os filtros minerais são boa opção).', normal: 'SPF 50, largo espectro (UVA e UVB), textura fluida.'},
     pesquisa: {oleosa: 'protetor solar facial spf 50 pele oleosa toque seco', mista: 'protetor solar facial spf 50 fluido', seca: 'protetor solar facial spf 50 hidratante', sensivel: 'protetor solar facial spf 50 pele sensível', normal: 'protetor solar facial spf 50 fluido'}}
 };
+Object.assign(SLOTS, {
+  serumDia: {nome: 'Sérum de dia', rec: true, icone: 'serum', porque: 'Trata a pele durante o dia (oleosidade, manchas, borbulhas) e reforça a proteção do protetor solar.'},
+  ativoNoite: {nome: 'Tratamento de noite', rec: true, icone: 'tratamento', porque: 'É à noite que a pele se renova: é aqui que entram os ativos mais fortes, como o retinol ou os ácidos.'},
+  reparador: {nome: 'Sérum reparador', rec: true, icone: 'serum', porque: 'Acalma e reconstrói a barreira da pele. É o que torna os ativos fortes suportáveis e o passo principal das noites de repouso.'},
+  olhos: {nome: 'Contorno de olhos', rec: true, icone: 'olhos', porque: 'A pele à volta dos olhos é mais fina e precisa de um produto próprio.'}
+});
+function procurarLugar(slot, ctx){
+  const tem = c => (ctx.sel.precisa[c] || 0) > 0, tp = PELES[cfg.pele] ? cfg.pele : 'normal';
+  if (SLOTS[slot].procurar) return [SLOTS[slot].procurar[tp], SLOTS[slot].pesquisa[tp]];
+  if (slot === 'serumDia'){
+    if (tem('manchas') || tem('rugas')) return ['Sérum de vitamina C (10 a 15%), de manhã, antes do hidratante e do protetor.', 'sérum vitamina c 15% rosto'];
+    if (tem('acne') || tem('oleosidade') || tem('poros') || tem('vermelhidao')) return ['Sérum de niacinamida (5 a 10%): controla a oleosidade, aperta os poros e acalma as borbulhas.', 'sérum niacinamida 10%'];
+    return ['Sérum de ácido hialurónico, aplicado com a pele ainda húmida.', 'sérum ácido hialurónico'];
+  }
+  if (slot === 'ativoNoite'){
+    if (tem('acne')) return ['Retinol (0,2 a 0,3%) ou ácido salicílico (BHA) 2%. Começa com 2 noites por semana; o adapaleno também resulta, mas precisa de receita.', 'sérum retinol 0,3% borbulhas'];
+    if (tem('pontos') || tem('poros') || tem('oleosidade')) return ['Ácido salicílico (BHA) a 2%, 2 a 3 noites por semana.', 'ácido salicílico 2% bha'];
+    if (tem('manchas') || tem('rugas')) return ['Retinol (0,2 a 0,5%), a começar devagar.', 'sérum retinol 0,3%'];
+    return ['Esfoliante suave com AHA (ácido láctico ou glicólico), 1 a 2 noites por semana.', 'esfoliante ácido láctico rosto'];
+  }
+  if (slot === 'reparador') return ['Sérum sem perfume com pantenol (vitamina B5), ceramidas, centella asiática ou ácido hialurónico.', 'sérum reparador pantenol b5'];
+  return ['Contorno de olhos com cafeína, vitamina C ou péptidos.', 'contorno de olhos cafeína'];
+}
 const PREOC_PROCURAR = {
   acne: ['Um tratamento para borbulhas: ácido salicílico (BHA) 2%, peróxido de benzoílo 2,5 a 5%, ácido azelaico ou adapaleno.', 'tratamento borbulhas ácido salicílico'],
   pontos: ['Ácido salicílico (BHA) a 2%, 2 a 3 noites por semana.', 'ácido salicílico 2% bha'],
@@ -167,6 +190,7 @@ const temIA = () => !!(cfg.chave || IA.temGroq());
 const procurarURL = q => 'https://www.google.com/search?q=' + encodeURIComponent(q + ' comprar preço Portugal');
 
 /* ---------- Contexto da rotina ---------- */
+let selAtual = null;
 function contexto(){
   const fila = calcularFila(produtos), hoje = inicioDia(new Date()), hk = diaChave(hoje);
   const sel = escolherRotina(fila.uso, cfg, pele, hoje); let mud = false;
@@ -180,17 +204,20 @@ function contexto(){
   if (mud) LS.set('produtos', produtos);
   if (sel.rotina.some(ehRet)){ if (!cfg.retInicio){ cfg.retInicio = hk; guardarCfg(true); } }
   else if (cfg.retInicio){ cfg.retInicio = ''; guardarCfg(true); }
+  selAtual = sel;
   const ctx = {uso: sel.rotina, fila: fila.uso, espera: fila.espera, sel, cfg, pele, hoje};
   ctx.plano = planoSemana(ctx);
   return ctx;
 }
 // Passos de um ritual com os lugares em falta da rotina base, cada um na sua posição.
 function comFaltas(se, s, ctx){
-  const fs = ctx.sel.faltas.filter(f => f.sessoes.includes(s)).map(f => ({falta: f.slot, ord: TIPOS[f.slot][1] * 100 + 50}));
+  const fs = [...ctx.sel.faltas.map(f => Object.assign({rec: false}, f)), ...ctx.sel.rec.map(f => Object.assign({rec: true}, f))]
+    .filter(f => f.sessoes.includes(s)).map(f => ({falta: f.slot, rec: f.rec, ord: LUGAR[f.slot].ord}));
   return [...se.passos.map(p => ({p, ord: ordemDe(p)})), ...fs].sort((a, b) => a.ord - b.ord);
 }
-const passoFalta = (slot, i) => `<div class="passo falta" data-acao="verFalta" data-v="${slot}"><span class="n">${i + 1}</span><span class="mini-foto">${iconeTipo(slot)}</span>
-  <div class="t"><b>Falta: ${esc(SLOTS[slot].nome)}</b><span>Toca para saber o que procurar</span></div><span class="marcar vazio">${IC.mais}</span></div>`;
+const passoFalta = (slot, i, rec) => `<div class="passo falta${rec ? ' rec' : ''}" data-acao="verFalta" data-v="${slot}"><span class="n">${i + 1}</span><span class="mini-foto">${iconeTipo(SLOTS[slot].icone || slot)}</span>
+  <div class="t"><b>${rec ? 'Recomendado' : 'Falta'}: ${esc(SLOTS[slot].nome)}</b><span>Toca para saber o que procurar</span></div><span class="marcar vazio">${IC.mais}</span></div>`;
+
 function agoraRitual(){
   const d = new Date(), h = d.getHours();
   if (h < 5){ d.setDate(d.getDate() - 1); return {data: inicioDia(d), s: 'n'}; }
@@ -229,7 +256,7 @@ function blocoRitual(ctx){
   const sub = s === 'm' ? 'Limpar, proteger e preparar o dia.' + (ctx.uso.some(p => p.tipo === 'protetor') ? ' O protetor é sempre o último.' : '') : TEXTO_NOITE[se.noite];
   const nFeitos = se.passos.filter(p => feitos[p.id]).length, completo = se.passos.length && nFeitos === se.passos.length;
   const itens = comFaltas(se, s, ctx);
-  const passos = itens.map(({p, falta}, i) => falta ? passoFalta(falta, i) : `<div class="passo${feitos[p.id] ? ' feito' : ''}" data-acao="abrirPasso" data-id="${p.id}">
+  const passos = itens.map(({p, falta, rec}, i) => falta ? passoFalta(falta, i, rec) : `<div class="passo${feitos[p.id] ? ' feito' : ''}" data-acao="abrirPasso" data-id="${p.id}">
       <span class="n">${i + 1}</span>${miniFoto(p)}<div class="t"><b>${nomeP(p)}</b><span>${resumoPasso(p)}</span></div>
       <button class="marcar" data-acao="marcarPasso" data-id="${p.id}" data-dia="${k}" data-s="${s}" aria-label="Feito">${IC.visto}</button>
       ${passoAberto === p.id ? infoPasso(p, ctx) : ''}</div>`).join('');
@@ -248,6 +275,10 @@ function blocoAvisos(ctx){
   const fl = ctx.sel.faltas;
   if (fl.length) av.push(`<div class="alerta">${IC.alerta}<div class="cresce"><b>A tua rotina base está incompleta.</b> Falta: ${fl.map(f => `${esc(SLOTS[f.slot].nome.toLowerCase())} (${SESS_TXT(f.sessoes)})`).join(', ')}.
     <div class="botoes" style="margin-top:8px">${fl.map(f => `<button class="btn peq-btn" data-acao="verFalta" data-v="${f.slot}">${esc(SLOTS[f.slot].nome)}</button>`).join('')}</div></div></div>`);
+  const rc = ctx.sel.rec;
+  if (rc.length) av.push(`<div class="alerta info">${IC.info}<div class="cresce"><b>Para o ritual ficar completo</b>, recomendo: ${rc.map(f => `${esc(SLOTS[f.slot].nome.toLowerCase())} (${SESS_TXT(f.sessoes)})`).join(', ')}.
+    <div class="botoes" style="margin-top:8px">${rc.map(f => `<button class="btn peq-btn" data-acao="verFalta" data-v="${f.slot}">${esc(SLOTS[f.slot].nome)}</button>`).join('')}</div></div></div>`);
+  if (!Object.keys(ctx.sel.precisa).length && ctx.sel.fora.length) av.push(`<div class="alerta info" data-acao="irPerfil">${IC.info}<div>Não marcaste nada que te preocupe, por isso o ritual fica só com o essencial e ${ctx.sel.fora.length} frascos ficam de fora. Toca para marcares no Perfil o que queres tratar.</div></div>`);
   for (const p of [...ctx.uso, ...ctx.espera.map(e => e.p)]){
     const v = validadeDe(p); if (!v) continue;
     if (v < hoje) av.push(`<div class="alerta perigo" data-acao="verFrasco" data-id="${p.id}">${IC.alerta}<div>${nomeP(p)} passou da validade (${mesAno(v)}). Deita-o fora e marca como acabado.</div></div>`);
@@ -309,40 +340,42 @@ function folhaDia(dow){
 
 /* ---------- Vista: Frascos ---------- */
 function cartaoFrasco(p, uso, extra = '', cls = ''){
-  const v = validadeDe(p), hoje = inicioDia(new Date()), q = quandoEfetivo(p, uso);
+  const o = selAtual && selAtual.onde[p.id], v = validadeDe(p), hoje = inicioDia(new Date()), q = o ? (o.length === 2 ? 'ambos' : o[0] === 'm' ? 'manha' : 'noite') : quandoEfetivo(p, uso);
   const canto = [q === 'manha' ? `<span class="tag ouro">${IC.sol.replace('<svg', '<svg style="width:11px;height:11px;display:inline;vertical-align:-1px"')}</span>` : q === 'noite' ? `<span class="tag lua">${IC.lua.replace('<svg', '<svg style="width:11px;height:11px;display:inline;vertical-align:-1px"')}</span>` : '',
     p.veredicto && VEREDICTOS[p.veredicto] ? `<span class="tag ${VEREDICTOS[p.veredicto][1]}">${VEREDICTOS[p.veredicto][0]}</span>` : '',
     v && v < hoje ? '<span class="tag perigo">Fora de validade</span>' : v && v - hoje < 30 * DIA ? '<span class="tag aviso">Validade</span>' : ''].join('');
   return `<div class="frasco ${cls}" data-acao="verFrasco" data-id="${p.id}"><div class="img">${fotos[p.id] ? `<img src="${fotos[p.id]}" alt="" loading="lazy">` : iconeTipo(p.tipo, 1.2)}</div>
     <div class="canto">${canto}</div><div class="info"><b>${nomeP(p)}</b><span>${esc([p.marca, tipoCurto(p.tipo)].filter(Boolean).join(' · '))}</span>${extra}</div></div>`;
 }
-// A rotina base: o modelo de manhã e de noite, com o que tens em cada lugar e o que falta.
+// A rotina base: os lugares de manhã e de noite, com o produto que ocupa cada um, o que falta e o que é recomendado.
+const ORDEM_LUGARES = {m: ['limpeza', 'serumDia', 'olhos', 'hidratante', 'protetor'], n: ['limpeza', 'mascara', 'ativoNoite', 'olhos', 'reparador', 'hidratante', 'oleo']};
+const ROTULO = {limpeza: 'Limpeza', serumDia: 'Sérum de dia', olhos: 'Olhos', hidratante: 'Hidratante', protetor: 'Protetor solar', mascara: 'Máscara', ativoNoite: 'Tratamento', reparador: 'Reparador', oleo: 'Nutrição', extra: 'Extra'};
 function blocoBase(ctx){
   const dias = {m: new Map(), n: new Map()};
   for (const d of SEMANA){ const dt = dataDaSemana(d); for (const s of ['m', 'n']) for (const p of sessao(dt, s, ctx, ctx.plano).passos) dias[s].set(p, [...(dias[s].get(p) || []), d]); }
-  const ess = t => p => t === 'limpeza' ? (p.tipo === 'limpeza' || p.tipo === 'desmaq') : t === 'protetor' ? (p.tipo === 'protetor' || temAtivo(p, 'spf')) : (p.tipo === 'hidratante' || p.tipo === 'mascaraNoite');
   const quandoDias = ds => ds.length === 7 ? '' : ' · ' + ds.map(d => DIAS_CURTO[d]).join(', ');
-  const slot = (s, t) => {
-    const f = ctx.sel.faltas.find(x => x.slot === t && x.sessoes.includes(s));
-    if (f) return `<div class="slot falta" data-acao="verFalta" data-v="${t}"><span>${esc(SLOTS[t].nome)}</span><b>Falta: toca para saber o que procurar</b></div>`;
-    const ps = [...dias[s].keys()].filter(ess(t)); if (!ps.length) return '';
-    return `<div class="slot" data-acao="verFrasco" data-id="${ps[0].id}"><span>${esc(SLOTS[t].nome)}</span><b>${ps.map(nomeP).join(' / ')}</b></div>`;
-  };
-  const extras = s => {
-    const ps = [...dias[s].keys()].filter(p => !['limpeza', 'hidratante', 'protetor'].some(t => ess(t)(p))).sort((a, b) => ordemDe(a) - ordemDe(b));
-    if (ps.length) return ps.map(p => `<div class="slot trat" data-acao="verFrasco" data-id="${p.id}"><span>${esc(tipoCurto(p.tipo))}${quandoDias(dias[s].get(p))}</span><b>${nomeP(p)}</b></div>`).join('');
-    const op = ctx.sel.porCobrir[0];
-    return op ? `<div class="slot opcional" data-acao="verPreoc" data-v="${op.c}"><span>Tratamento</span><b>Opcional: para ${esc(PREOC_CURTO[op.c])}</b></div>`
-      : `<div class="slot nada"><span>Tratamento</span><b>Não precisas</b></div>`;
+  const lugaresDe = p => ctx.sel.lugares[p.id] || ['extra'];
+  const sessaoBase = s => {
+    const usados = new Set(), linhas = [];
+    for (const l of [...ORDEM_LUGARES[s], 'extra']){
+      const ps = [...dias[s].keys()].filter(p => !usados.has(p) && lugaresDe(p).includes(l));
+      ps.forEach(p => usados.add(p));
+      if (ps.length) { for (const p of ps) linhas.push(`<div class="slot${ESSENCIAIS.includes(l) ? '' : ' trat'}" data-acao="verFrasco" data-id="${p.id}"><span>${ROTULO[l]}${quandoDias(dias[s].get(p))}</span><b>${nomeP(p)}</b></div>`); continue; }
+      const f = ctx.sel.faltas.find(x => x.slot === l && x.sessoes.includes(s)), r = ctx.sel.rec.find(x => x.slot === l && x.sessoes.includes(s));
+      if (f) linhas.push(`<div class="slot falta" data-acao="verFalta" data-v="${l}"><span>${ROTULO[l]}</span><b>Falta: toca para saber o que procurar</b></div>`);
+      else if (r) linhas.push(`<div class="slot rec" data-acao="verFalta" data-v="${l}"><span>${ROTULO[l]}</span><b>Recomendado: toca para saber o que procurar</b></div>`);
+    }
+    for (const p of [...dias[s].keys()].filter(p => !usados.has(p))) linhas.push(`<div class="slot trat" data-acao="verFrasco" data-id="${p.id}"><span>${esc(tipoCurto(p.tipo))}</span><b>${nomeP(p)}</b></div>`);
+    return linhas.join('');
   };
   const cob = ctx.sel.cobertura.filter(c => c.origem !== 'tipo' || c.por.length || c.falta >= 2);
   const ORIG = {perfil: '', tipo: ' (pelo teu tipo de pele)', registos: ' (pelos teus registos)'};
   return `<div class="placa col"><h2>A tua rotina base</h2>
-    <p class="suave peq" style="margin:0">Só o essencial, mais um tratamento para cada coisa que a tua pele precisa. O resto fica de fora.</p>
-    <div class="base-sessao"><h3>${IC.sol} Aurora</h3>${slot('m', 'limpeza')}${extras('m')}${slot('m', 'hidratante')}${slot('m', 'protetor')}</div>
-    <div class="base-sessao"><h3>${IC.lua} Lua</h3>${slot('n', 'limpeza')}${extras('n')}${slot('n', 'hidratante')}</div>
+    <p class="suave peq" style="margin:0">Os essenciais, mais os passos que a tua pele precisa. Os frascos que não fazem falta ficam de fora.</p>
+    <div class="base-sessao"><h3>${IC.sol} Aurora</h3>${sessaoBase('m')}</div>
+    <div class="base-sessao"><h3>${IC.lua} Lua</h3>${sessaoBase('n')}</div>
     ${cob.length ? `<div><h3>O que a tua pele precisa</h3><div class="lista">${cob.map(c => { const ok = c.falta < 2;
-      return `<div class="item"${ok ? '' : ` data-acao="verPreoc" data-v="${c.c}"`}><div class="t"><b>${esc(PREOCUPACOES[c.c] || c.c)}${ORIG[c.origem] || ''}</b><span>${c.por.length ? 'Com ' + c.por.map(p => esc(p.nome)).join(', ') : 'Ainda sem tratamento na rotina'}</span></div>${ok ? '<span class="tag">tratado</span>' : '<span class="tag aviso">opcional</span>'}</div>`; }).join('')}</div></div>`
+      return `<div class="item"${ok ? '' : ` data-acao="verPreoc" data-v="${c.c}"`}><div class="t"><b>${esc(PREOCUPACOES[c.c] || c.c)}${ORIG[c.origem] || ''}</b><span>${c.por.length ? 'Com ' + c.por.map(p => esc(p.nome)).join(', ') : 'Ainda sem tratamento na rotina'}</span></div>${ok ? '<span class="tag">tratado</span>' : '<span class="tag aviso">por tratar</span>'}</div>`; }).join('')}</div></div>`
       : `<p class="suave mini" style="margin:0">Não marcaste preocupações no Perfil: a tua rotina fica só com o essencial.</p>`}</div>`;
 }
 function blocoCompras(){
@@ -357,7 +390,7 @@ function rFrascos(){
   let html = `<h1 class="titulo-vista">Os teus frascos</h1><p class="sub-vista">Fotografa e o Mestre lê o rótulo.</p>
     <div class="adicionar"><button class="btn jade" data-acao="fotografar">${IC.camara} Fotografar frasco</button><button class="btn" data-acao="novoManual">${IC.mais} À mão</button></div>`;
   if (cfg.pronto) html += blocoBase(ctx);
-  if (ctx.sel.faltas.length) html += blocoCompras();
+  if (ctx.sel.faltas.length || ctx.sel.rec.length) html += blocoCompras();
   if (ctx.uso.length) html += `<div class="placa"><h2>Na rotina <span class="suave peq">(${ctx.uso.length})</span></h2><div class="grelha-frascos">${ordem(ctx.uso).map(p => cartaoFrasco(p, ctx.uso)).join('')}</div></div>`;
   const porLer = produtos.filter(p => p.porLer && !p.fim);
   if (porLer.length) html += `<div class="placa col"><h2>Por ler <span class="suave peq">(${porLer.length})</span></h2><p class="suave peq" style="margin:0">O Mestre ainda não leu estes rótulos. Guardei as fotos: quando ele tiver forças, lê todos de uma vez.</p>
@@ -369,7 +402,7 @@ function rFrascos(){
     <div class="grelha-frascos">${ctx.espera.map(e => cartaoFrasco(e.p, ctx.uso, `<span style="color:var(--ouro)">Depois de ${esc(e.depois.nome)}</span>`, 'espera')).join('')}</div></div>`;
   if (livres.length) html += `<div class="placa"><h2>Quando precisares</h2><p class="suave peq">Fora do ritual: usa sempre que sentires falta.</p><div class="lista">${livres.map(p => `<div class="item" data-acao="verFrasco" data-id="${p.id}">${miniFoto(p)}<div class="t"><b>${nomeP(p)}</b><span>${esc(tipoCurto(p.tipo))}</span></div></div>`).join('')}</div></div>`;
   if (pausa.length) html += `<div class="placa"><h2>Em pausa</h2><p class="suave peq">Não entram no ritual até os retomares.</p><div class="grelha-frascos">${pausa.map(p => cartaoFrasco(p, ctx.uso, '', 'espera')).join('')}</div></div>`;
-  if (!ctx.sel.faltas.length) html += blocoCompras();
+  if (!ctx.sel.faltas.length && !ctx.sel.rec.length) html += blocoCompras();
   html += blocoRevisao();
   if (acabados.length) html += `<details class="placa simples"><summary><h2 style="display:inline;padding:0">Acabados</h2> <span class="suave peq">(${acabados.length})</span></summary>
     <div class="lista" style="margin-top:10px">${acabados.map(p => `<div class="item" data-acao="verFrasco" data-id="${p.id}">${miniFoto(p)}<div class="t"><b>${nomeP(p)}</b><span>Acabou a ${dataCurta(p.fim)}${p.recomprar === false ? ' · não recomprar' : p.recomprar ? ' · recomprar' : ''}</span></div></div>`).join('')}</div></details>`;
@@ -431,12 +464,13 @@ function botoesProcura(alvo, pesquisa, pergunta){
       <button class="btn" data-acao="fotografar">${IC.camara} Já tenho um</button></div></div>`;
 }
 function folhaFalta(slot){
-  const ctx = contexto(), f = ctx.sel.faltas.find(x => x.slot === slot), S = SLOTS[slot], tp = PELES[cfg.pele] ? cfg.pele : 'normal';
-  abrirFolha(`${cab('Falta: ' + esc(S.nome))}
-    <div class="tags"><span class="tag ouro">Essencial</span>${f ? `<span class="tag">${SESS_TXT(f.sessoes)}</span>` : ''}</div>
+  const ctx = contexto(), S = SLOTS[slot], f = [...ctx.sel.faltas, ...ctx.sel.rec].find(x => x.slot === slot), [txt, pesq] = procurarLugar(slot, ctx);
+  const para = Object.keys(ctx.sel.precisa).map(c => PREOC_CURTO[c]);
+  abrirFolha(`${cab((S.rec ? 'Recomendado: ' : 'Falta: ') + esc(S.nome))}
+    <div class="tags">${S.rec ? '<span class="tag agua">Recomendado</span>' : '<span class="tag ouro">Essencial</span>'}${f ? `<span class="tag">${SESS_TXT(f.sessoes)}</span>` : ''}</div>
     <p style="margin:0">${esc(S.porque)}</p>
-    <div class="resposta-mestre"><span class="quem">O que procurar${cfg.pele ? ' para pele ' + esc(PELES[cfg.pele].split(' ')[0].toLowerCase()) : ''}</span>${esc(S.procurar[tp])}</div>
-    ${botoesProcura(slot, S.pesquisa[tp], `Preciso de um ${S.nome.toLowerCase()} para ${f ? SESS_TXT(f.sessoes) : 'a minha rotina'}. Que produtos concretos me aconselhas para a minha pele, à venda em Portugal?`)}`, 'falta');
+    <div class="resposta-mestre"><span class="quem">O que procurar${cfg.pele ? ' para pele ' + esc(PELES[cfg.pele].split(' ')[0].toLowerCase()) : ''}${S.rec && para.length ? ' (' + esc(para.slice(0, 3).join(', ')) + ')' : ''}</span>${esc(txt)}</div>
+    ${botoesProcura(slot, pesq, `Preciso de ${S.nome.toLowerCase()} para ${f ? SESS_TXT(f.sessoes) : 'a minha rotina'}. Que produtos concretos me aconselhas para a minha pele, à venda em Portugal?`)}`, 'falta');
 }
 function folhaPreoc(c){
   const [txt, pesq] = PREOC_PROCURAR[c] || ['', c];

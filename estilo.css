@@ -293,3 +293,7 @@ details.placa > summary h2 { padding-left: 14px; }
 .veredicto-compra.nao { border-color: rgba(236, 138, 128, .45); background: rgba(236, 138, 128, .08); } .veredicto-compra.nao b { color: var(--perigo); }
 .veredicto-compra.talvez { border-color: rgba(233, 184, 114, .45); background: rgba(233, 184, 114, .08); } .veredicto-compra.talvez b { color: var(--aviso); }
 a.btn { text-decoration: none; }
+.passo.falta.rec .n, .passo.falta.rec .mini-foto, .passo.falta.rec .marcar.vazio { border-color: rgba(134, 205, 221, .45); color: var(--agua); background: rgba(134, 205, 221, .04); }
+.passo.falta.rec .t b { color: var(--agua); }
+.slot.rec { border-style: dashed; border-color: rgba(134, 205, 221, .45); background: rgba(134, 205, 221, .05); }
+.slot.rec > b { color: var(--agua); font-weight: 500; }

@@ -269,3 +269,27 @@ details summary::-webkit-details-marker { display: none; }
 @media (min-width: 700px) { .grelha-frascos { grid-template-columns: repeat(3, 1fr); } }
 .abas button { position: relative; overflow: hidden; }
 details.placa > summary h2 { padding-left: 14px; }
+
+/* ---------- Rotina base e lugares em falta ---------- */
+.passo.falta .n { border-style: dashed; color: var(--aviso); border-color: rgba(233, 184, 114, .5); background: transparent; }
+.passo.falta .mini-foto { border-style: dashed; border-color: rgba(233, 184, 114, .5); color: var(--aviso); background: rgba(233, 184, 114, .05); }
+.passo.falta .t b { color: var(--aviso); }
+.marcar.vazio { color: var(--aviso); border-style: dashed; border-color: rgba(233, 184, 114, .5); }
+.base-sessao { display: flex; flex-direction: column; gap: 6px; }
+.base-sessao h3 { display: flex; align-items: center; gap: 6px; margin: 6px 0 2px; }
+.base-sessao h3 svg { width: 16px; height: 16px; color: var(--ouro); }
+.slot { position: relative; overflow: hidden; display: grid; grid-template-columns: 110px 1fr; gap: 10px; align-items: center; padding: 9px 12px; border-radius: 12px; border: 1px solid var(--linha); background: rgba(0, 0, 0, .18); font-size: 13.5px; }
+.slot[data-acao] { cursor: pointer; }
+.slot > span { color: var(--suave); font-size: 12px; font-weight: 600; }
+.slot > b { font-weight: 600; line-height: 1.3; }
+.slot.trat > span { color: var(--agua); }
+.slot.falta { border-style: dashed; border-color: rgba(233, 184, 114, .55); background: rgba(233, 184, 114, .06); }
+.slot.falta > b { color: var(--aviso); font-weight: 500; }
+.slot.nada > b, .slot.opcional > b { color: var(--apagado); font-weight: 400; }
+.alerta[data-acao] { cursor: pointer; position: relative; overflow: hidden; }
+.veredicto-compra { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 14px; border-radius: 14px; text-align: center; border: 1px solid var(--linha2); background: rgba(127, 209, 180, .08); }
+.veredicto-compra b { font: 600 26px/1.1 var(--serifa); color: var(--jade); }
+.veredicto-compra span { font-size: 13.5px; color: var(--suave); }
+.veredicto-compra.nao { border-color: rgba(236, 138, 128, .45); background: rgba(236, 138, 128, .08); } .veredicto-compra.nao b { color: var(--perigo); }
+.veredicto-compra.talvez { border-color: rgba(233, 184, 114, .45); background: rgba(233, 184, 114, .08); } .veredicto-compra.talvez b { color: var(--aviso); }
+a.btn { text-decoration: none; }

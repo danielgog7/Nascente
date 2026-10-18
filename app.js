@@ -84,6 +84,34 @@ const MEDIDAS = [
   ['irritacao', 'Vermelhidão / irritação', ['Nenhuma', 'Ligeira', 'Média', 'Forte', 'Muito forte'], '#f0a8c0', 0]
 ];
 const SINAIS = ['Zona T oleosa', 'Borbulha nova', 'Pontos negros', 'Poros dilatados', 'Descamação', 'Comichão', 'Ardor', 'Manchas', 'Olheiras', 'Pele baça'];
+const SLOTS = {
+  limpeza: {nome: 'Gel de limpeza', porque: 'Tira a oleosidade, o suor e o protetor do dia. Sem uma boa limpeza, os poros entopem e os outros produtos não atuam.',
+    procurar: {oleosa: 'Gel ou espuma de limpeza suave, sem sabão e sem álcool. Se tiveres borbulhas, pode ter ácido salicílico.', mista: 'Gel de limpeza suave, sem sabão, que não deixe a pele a repuxar.',
+      seca: 'Creme ou leite de limpeza suave, sem perfume, com ceramidas ou glicerina.', sensivel: 'Limpeza muito suave, sem perfume e sem álcool (creme de limpeza ou água micelar para pele sensível).', normal: 'Gel de limpeza suave, sem sabão.'},
+    pesquisa: {oleosa: 'gel de limpeza pele oleosa', mista: 'gel de limpeza suave pele mista', seca: 'creme de limpeza pele seca', sensivel: 'limpeza rosto pele sensível sem perfume', normal: 'gel de limpeza suave rosto'}},
+  hidratante: {nome: 'Hidratante', porque: 'Repõe a água e protege a barreira da pele. Mesmo a pele oleosa precisa: sem hidratação, produz ainda mais oleosidade.',
+    procurar: {oleosa: 'Gel-creme leve, não comedogénico, sem óleos pesados. Niacinamida ou ácido hialurónico são uma vantagem.', mista: 'Creme leve ou gel-creme, não comedogénico, com ácido hialurónico ou ceramidas.',
+      seca: 'Creme rico com ceramidas, glicerina, manteiga de karité ou ureia.', sensivel: 'Creme sem perfume, com ceramidas e calmantes (pantenol, centella asiática).', normal: 'Creme leve com ceramidas e ácido hialurónico.'},
+    pesquisa: {oleosa: 'hidratante gel pele oleosa não comedogénico', mista: 'hidratante leve pele mista', seca: 'creme hidratante ceramidas pele seca', sensivel: 'creme hidratante pele sensível sem perfume', normal: 'creme hidratante rosto ceramidas'}},
+  protetor: {nome: 'Protetor solar', porque: 'O sol é a principal causa de manchas e de envelhecimento, e escurece as marcas das borbulhas. Com retinoides, ácidos ou vitamina C é obrigatório.',
+    procurar: {oleosa: 'SPF 50, largo espectro (UVA e UVB), fluido de toque seco ou matificante.', mista: 'SPF 50, largo espectro (UVA e UVB), textura fluida e leve.',
+      seca: 'SPF 50, largo espectro (UVA e UVB), em creme hidratante.', sensivel: 'SPF 50 para pele sensível, sem perfume (os filtros minerais são boa opção).', normal: 'SPF 50, largo espectro (UVA e UVB), textura fluida.'},
+    pesquisa: {oleosa: 'protetor solar facial spf 50 pele oleosa toque seco', mista: 'protetor solar facial spf 50 fluido', seca: 'protetor solar facial spf 50 hidratante', sensivel: 'protetor solar facial spf 50 pele sensível', normal: 'protetor solar facial spf 50 fluido'}}
+};
+const PREOC_PROCURAR = {
+  acne: ['Um tratamento para borbulhas: ácido salicílico (BHA) 2%, peróxido de benzoílo 2,5 a 5%, ácido azelaico ou adapaleno.', 'tratamento borbulhas ácido salicílico'],
+  pontos: ['Ácido salicílico (BHA) a 2%, 2 a 3 noites por semana.', 'ácido salicílico 2% bha'],
+  oleosidade: ['Sérum de niacinamida (5 a 10%) ou um hidratante matificante.', 'sérum niacinamida 10%'],
+  poros: ['Niacinamida ou ácido salicílico (BHA).', 'sérum niacinamida poros'],
+  manchas: ['Vitamina C de manhã, ou ácido azelaico, niacinamida ou ácido tranexâmico. E protetor solar todos os dias.', 'sérum vitamina c rosto'],
+  vermelhidao: ['Um calmante (centella asiática, pantenol) ou ácido azelaico. Evita perfume e álcool.', 'sérum calmante centella'],
+  desidratacao: ['Sérum de ácido hialurónico ou um hidratante com ceramidas.', 'sérum ácido hialurónico'],
+  rugas: ['Retinol à noite (a começar devagar) e protetor solar todos os dias.', 'sérum retinol 0,2%'],
+  olheiras: ['Contorno de olhos com cafeína, vitamina C ou péptidos.', 'contorno de olhos cafeína'],
+  textura: ['Esfoliante químico suave (AHA ou PHA), 1 a 2 noites por semana.', 'esfoliante ácido láctico rosto']
+};
+const SESS_TXT = ss => ss.length === 2 ? 'manhã e noite' : ss[0] === 'm' ? 'manhã' : 'noite';
+const VER_COMPRA = {sim: ['Serve-te', 'sim'], nao: ['Não é para ti', 'nao'], talvez: ['Talvez', 'talvez']};
 const VEREDICTOS = {essencial: ['Essencial', ''], util: ['Útil', 'agua'], dispensavel: ['Dispensável', 'apagado'], evitar: ['Evitar', 'perigo']};
 
 /* ---------- Estado ---------- */
@@ -95,6 +123,7 @@ let pele = LS.get('pele', []);
 let conversa = LS.get('conversa', []);
 let revisao = LS.get('revisao', null);
 let avaliacao = LS.get('avaliacao', null);
+let compras = LS.get('compras', []);
 let gh = LS.get('gh', {dono: '', repo: '', token: ''});
 let sync = LS.get('sync', {sha: '', sujo: 0, ultimo: 0, erro: ''});
 const fotos = {}; // id -> dataURL (cópia em memória do IndexedDB)
@@ -139,15 +168,29 @@ const procurarURL = q => 'https://www.google.com/search?q=' + encodeURIComponent
 
 /* ---------- Contexto da rotina ---------- */
 function contexto(){
-  const fila = calcularFila(produtos), hoje = inicioDia(new Date()); let mud = false;
-  for (const p of fila.uso) if (!p.inicio){ p.inicio = diaChave(hoje); mud = true; }
+  const fila = calcularFila(produtos), hoje = inicioDia(new Date()), hk = diaChave(hoje);
+  const sel = escolherRotina(fila.uso, cfg, pele, hoje); let mud = false;
+  // Datas de entrada e saída da rotina (o Mestre usa-as para ver o que resulta).
+  for (const p of produtos){
+    if (p.fim) continue;
+    const dentro = sel.rotina.includes(p);
+    if (dentro && !p.naRotina){ p.naRotina = true; if (!p.inicio || p.saida) p.inicio = hk; delete p.saida; mud = true; }
+    else if (!dentro && p.naRotina){ p.naRotina = false; p.saida = hk; mud = true; }
+  }
   if (mud) LS.set('produtos', produtos);
-  if (fila.uso.some(ehRet)){ if (!cfg.retInicio){ cfg.retInicio = diaChave(hoje); guardarCfg(true); } }
+  if (sel.rotina.some(ehRet)){ if (!cfg.retInicio){ cfg.retInicio = hk; guardarCfg(true); } }
   else if (cfg.retInicio){ cfg.retInicio = ''; guardarCfg(true); }
-  const ctx = {uso: fila.uso, espera: fila.espera, cfg, pele, hoje};
+  const ctx = {uso: sel.rotina, fila: fila.uso, espera: fila.espera, sel, cfg, pele, hoje};
   ctx.plano = planoSemana(ctx);
   return ctx;
 }
+// Passos de um ritual com os lugares em falta da rotina base, cada um na sua posição.
+function comFaltas(se, s, ctx){
+  const fs = ctx.sel.faltas.filter(f => f.sessoes.includes(s)).map(f => ({falta: f.slot, ord: TIPOS[f.slot][1] * 100 + 50}));
+  return [...se.passos.map(p => ({p, ord: ordemDe(p)})), ...fs].sort((a, b) => a.ord - b.ord);
+}
+const passoFalta = (slot, i) => `<div class="passo falta" data-acao="verFalta" data-v="${slot}"><span class="n">${i + 1}</span><span class="mini-foto">${iconeTipo(slot)}</span>
+  <div class="t"><b>Falta: ${esc(SLOTS[slot].nome)}</b><span>Toca para saber o que procurar</span></div><span class="marcar vazio">${IC.mais}</span></div>`;
 function agoraRitual(){
   const d = new Date(), h = d.getHours();
   if (h < 5){ d.setDate(d.getDate() - 1); return {data: inicioDia(d), s: 'n'}; }
@@ -185,7 +228,8 @@ function blocoRitual(ctx){
   const titulo = s === 'm' ? 'Ritual da Aurora' : NOITES[se.noite][0];
   const sub = s === 'm' ? 'Limpar, proteger e preparar o dia.' + (ctx.uso.some(p => p.tipo === 'protetor') ? ' O protetor é sempre o último.' : '') : TEXTO_NOITE[se.noite];
   const nFeitos = se.passos.filter(p => feitos[p.id]).length, completo = se.passos.length && nFeitos === se.passos.length;
-  const passos = se.passos.map((p, i) => `<div class="passo${feitos[p.id] ? ' feito' : ''}" data-acao="abrirPasso" data-id="${p.id}">
+  const itens = comFaltas(se, s, ctx);
+  const passos = itens.map(({p, falta}, i) => falta ? passoFalta(falta, i) : `<div class="passo${feitos[p.id] ? ' feito' : ''}" data-acao="abrirPasso" data-id="${p.id}">
       <span class="n">${i + 1}</span>${miniFoto(p)}<div class="t"><b>${nomeP(p)}</b><span>${resumoPasso(p)}</span></div>
       <button class="marcar" data-acao="marcarPasso" data-id="${p.id}" data-dia="${k}" data-s="${s}" aria-label="Feito">${IC.visto}</button>
       ${passoAberto === p.id ? infoPasso(p, ctx) : ''}</div>`).join('');
@@ -194,15 +238,16 @@ function blocoRitual(ctx){
       <button class="${s === 'n' ? 'on' : ''}" data-acao="ritualSel" data-v="n">${IC.lua} Lua</button></div>
     <div class="placa">
       <div class="cab-ritual">${ASTRO[s]}<div class="cresce"><h2>${titulo}</h2><span class="suave peq">${esc(sub)}</span></div></div>
-      ${se.passos.length ? `<div class="passos">${passos}</div>` : `<p class="suave centro" style="padding:12px 0">${ctx.uso.length ? 'Nada para este ritual. Água fresca e descansa.' : 'Ainda não tens frascos.'}</p>`}
+      ${itens.length ? `<div class="passos">${passos}</div>` : `<p class="suave centro" style="padding:12px 0">Nada para este ritual. Água fresca e descansa.</p>`}
       ${completo ? `<div class="completo"><b>Ritual completo</b><span class="suave peq">O teu qi fluiu. Mais um passo no caminho.</span></div>`
         : se.passos.length ? `<div class="linha entre" style="margin-top:8px"><span class="suave mini">${nFeitos} de ${se.passos.length} passos</span><button class="btn fantasma peq-btn" data-acao="marcarTudo" data-dia="${k}" data-s="${s}">Marcar tudo</button></div>` : ''}
     </div>`;
 }
 function blocoAvisos(ctx){
   const av = [], hoje = ctx.hoje;
-  for (const [t, txt] of faltas(ctx.uso))
-    av.push(`<div class="alerta">${IC.alerta}<div class="cresce">Falta-te ${esc(txt)}.<div style="margin-top:6px"><button class="btn peq-btn" data-acao="perguntar" data-q="${esc(`Preciso de ${txt}. Qual me aconselhas para a minha pele?`)}">${IC.ia} Pedir conselho</button></div></div></div>`);
+  const fl = ctx.sel.faltas;
+  if (fl.length) av.push(`<div class="alerta">${IC.alerta}<div class="cresce"><b>A tua rotina base está incompleta.</b> Falta: ${fl.map(f => `${esc(SLOTS[f.slot].nome.toLowerCase())} (${SESS_TXT(f.sessoes)})`).join(', ')}.
+    <div class="botoes" style="margin-top:8px">${fl.map(f => `<button class="btn peq-btn" data-acao="verFalta" data-v="${f.slot}">${esc(SLOTS[f.slot].nome)}</button>`).join('')}</div></div></div>`);
   for (const p of [...ctx.uso, ...ctx.espera.map(e => e.p)]){
     const v = validadeDe(p); if (!v) continue;
     if (v < hoje) av.push(`<div class="alerta perigo" data-acao="verFrasco" data-id="${p.id}">${IC.alerta}<div>${nomeP(p)} passou da validade (${mesAno(v)}). Deita-o fora e marca como acabado.</div></div>`);
@@ -254,10 +299,12 @@ function rRitual(){
 function atualizarTopo(){ const r = reino(pontos()); $('#reinoTopo').textContent = produtos.length ? r.nome : ''; }
 function folhaDia(dow){
   const ctx = contexto(), dt = dataDaSemana(dow), m = sessao(dt, 'm', ctx, ctx.plano), n = sessao(dt, 'n', ctx, ctx.plano);
-  const lista = se => se.passos.length ? `<div class="lista">${se.passos.map((p, i) => `<div class="item" data-acao="verFrasco" data-id="${p.id}"><span class="serifa" style="color:var(--ouro);width:16px">${i + 1}</span>${miniFoto(p)}<div class="t"><b>${nomeP(p)}</b><span>${resumoPasso(p)}</span></div></div>`).join('')}</div>` : '<p class="suave">Nada.</p>';
+  const lista = (se, s) => { const it = comFaltas(se, s, ctx); return it.length ? `<div class="lista">${it.map(({p, falta}, i) => falta
+    ? `<div class="item" data-acao="verFalta" data-v="${falta}"><span class="serifa" style="color:var(--aviso);width:16px">${i + 1}</span><span class="mini-foto" style="border-style:dashed;color:var(--aviso)">${iconeTipo(falta)}</span><div class="t"><b style="color:var(--aviso)">Falta: ${esc(SLOTS[falta].nome)}</b><span>Toca para saber o que procurar</span></div></div>`
+    : `<div class="item" data-acao="verFrasco" data-id="${p.id}"><span class="serifa" style="color:var(--ouro);width:16px">${i + 1}</span>${miniFoto(p)}<div class="t"><b>${nomeP(p)}</b><span>${resumoPasso(p)}</span></div></div>`).join('')}</div>` : '<p class="suave">Nada.</p>'; };
   abrirFolha(`${cab(DIAS_LONGO[dow][0].toUpperCase() + DIAS_LONGO[dow].slice(1))}
-    <div class="col"><h3 class="linha" style="gap:6px">${IC.sol} Aurora</h3>${lista(m)}</div>
-    <div class="col"><h3 class="linha" style="gap:6px">${IC.lua} ${NOITES[n.noite][0]}${NOITES[n.noite][1] ? ' · ' + NOITES[n.noite][1] : ''}</h3><p class="suave peq" style="margin:0">${TEXTO_NOITE[n.noite]}</p>${lista(n)}</div>`, 'dia');
+    <div class="col"><h3 class="linha" style="gap:6px">${IC.sol} Aurora</h3>${lista(m, 'm')}</div>
+    <div class="col"><h3 class="linha" style="gap:6px">${IC.lua} ${NOITES[n.noite][0]}${NOITES[n.noite][1] ? ' · ' + NOITES[n.noite][1] : ''}</h3><p class="suave peq" style="margin:0">${TEXTO_NOITE[n.noite]}</p>${lista(n, 'n')}</div>`, 'dia');
 }
 
 /* ---------- Vista: Frascos ---------- */
@@ -269,19 +316,60 @@ function cartaoFrasco(p, uso, extra = '', cls = ''){
   return `<div class="frasco ${cls}" data-acao="verFrasco" data-id="${p.id}"><div class="img">${fotos[p.id] ? `<img src="${fotos[p.id]}" alt="" loading="lazy">` : iconeTipo(p.tipo, 1.2)}</div>
     <div class="canto">${canto}</div><div class="info"><b>${nomeP(p)}</b><span>${esc([p.marca, tipoCurto(p.tipo)].filter(Boolean).join(' · '))}</span>${extra}</div></div>`;
 }
+// A rotina base: o modelo de manhã e de noite, com o que tens em cada lugar e o que falta.
+function blocoBase(ctx){
+  const dias = {m: new Map(), n: new Map()};
+  for (const d of SEMANA){ const dt = dataDaSemana(d); for (const s of ['m', 'n']) for (const p of sessao(dt, s, ctx, ctx.plano).passos) dias[s].set(p, [...(dias[s].get(p) || []), d]); }
+  const ess = t => p => t === 'limpeza' ? (p.tipo === 'limpeza' || p.tipo === 'desmaq') : t === 'protetor' ? (p.tipo === 'protetor' || temAtivo(p, 'spf')) : (p.tipo === 'hidratante' || p.tipo === 'mascaraNoite');
+  const quandoDias = ds => ds.length === 7 ? '' : ' · ' + ds.map(d => DIAS_CURTO[d]).join(', ');
+  const slot = (s, t) => {
+    const f = ctx.sel.faltas.find(x => x.slot === t && x.sessoes.includes(s));
+    if (f) return `<div class="slot falta" data-acao="verFalta" data-v="${t}"><span>${esc(SLOTS[t].nome)}</span><b>Falta: toca para saber o que procurar</b></div>`;
+    const ps = [...dias[s].keys()].filter(ess(t)); if (!ps.length) return '';
+    return `<div class="slot" data-acao="verFrasco" data-id="${ps[0].id}"><span>${esc(SLOTS[t].nome)}</span><b>${ps.map(nomeP).join(' / ')}</b></div>`;
+  };
+  const extras = s => {
+    const ps = [...dias[s].keys()].filter(p => !['limpeza', 'hidratante', 'protetor'].some(t => ess(t)(p))).sort((a, b) => ordemDe(a) - ordemDe(b));
+    if (ps.length) return ps.map(p => `<div class="slot trat" data-acao="verFrasco" data-id="${p.id}"><span>${esc(tipoCurto(p.tipo))}${quandoDias(dias[s].get(p))}</span><b>${nomeP(p)}</b></div>`).join('');
+    const op = ctx.sel.porCobrir[0];
+    return op ? `<div class="slot opcional" data-acao="verPreoc" data-v="${op.c}"><span>Tratamento</span><b>Opcional: para ${esc(PREOC_CURTO[op.c])}</b></div>`
+      : `<div class="slot nada"><span>Tratamento</span><b>Não precisas</b></div>`;
+  };
+  const cob = ctx.sel.cobertura.filter(c => c.origem !== 'tipo' || c.por.length || c.falta >= 2);
+  const ORIG = {perfil: '', tipo: ' (pelo teu tipo de pele)', registos: ' (pelos teus registos)'};
+  return `<div class="placa col"><h2>A tua rotina base</h2>
+    <p class="suave peq" style="margin:0">Só o essencial, mais um tratamento para cada coisa que a tua pele precisa. O resto fica de fora.</p>
+    <div class="base-sessao"><h3>${IC.sol} Aurora</h3>${slot('m', 'limpeza')}${extras('m')}${slot('m', 'hidratante')}${slot('m', 'protetor')}</div>
+    <div class="base-sessao"><h3>${IC.lua} Lua</h3>${slot('n', 'limpeza')}${extras('n')}${slot('n', 'hidratante')}</div>
+    ${cob.length ? `<div><h3>O que a tua pele precisa</h3><div class="lista">${cob.map(c => { const ok = c.falta < 2;
+      return `<div class="item"${ok ? '' : ` data-acao="verPreoc" data-v="${c.c}"`}><div class="t"><b>${esc(PREOCUPACOES[c.c] || c.c)}${ORIG[c.origem] || ''}</b><span>${c.por.length ? 'Com ' + c.por.map(p => esc(p.nome)).join(', ') : 'Ainda sem tratamento na rotina'}</span></div>${ok ? '<span class="tag">tratado</span>' : '<span class="tag aviso">opcional</span>'}</div>`; }).join('')}</div></div>`
+      : `<p class="suave mini" style="margin:0">Não marcaste preocupações no Perfil: a tua rotina fica só com o essencial.</p>`}</div>`;
+}
+function blocoCompras(){
+  return `<div class="placa col"><h2>Antes de comprar</h2><p class="suave peq" style="margin:0">Viste um produto na loja ou num site? Tira uma foto ou uma captura de ecrã e o Mestre diz se te serve.</p>
+    <button class="btn ouro" data-acao="verificar">${IC.camara} Verificar um produto</button>
+    ${compras.length ? `<div class="lista">${compras.map(c => `<div class="item" data-acao="verCompra" data-id="${c.id}">${fotos['c:' + c.id] ? `<img class="mini-foto" src="${fotos['c:' + c.id]}" alt="">` : `<span class="mini-foto">${iconeTipo(c.dados.tipo)}</span>`}
+      <div class="t"><b>${esc(c.dados.nome || 'Produto')}</b><span>${esc(c.papel || tipoCurto(c.dados.tipo))}</span></div><span class="tag ${({sim: '', nao: 'perigo', talvez: 'aviso'})[c.veredicto] ?? 'aviso'}">${(VER_COMPRA[c.veredicto] || VER_COMPRA.talvez)[0]}</span></div>`).join('')}</div>` : ''}</div>`;
+}
 function rFrascos(){
   const ctx = contexto(), pausa = produtos.filter(p => p.pausa && !p.fim), acabados = produtos.filter(p => p.fim).sort((a, b) => String(b.fim).localeCompare(String(a.fim)));
-  const ordem = l => l.slice().sort((a, b) => ordemDe(a) - ordemDe(b));
+  const ordem = l => l.slice().sort((a, b) => ordemDe(a) - ordemDe(b)), fora = ctx.sel.fora.filter(f => !f.p.porLer), livres = ctx.sel.livres;
   let html = `<h1 class="titulo-vista">Os teus frascos</h1><p class="sub-vista">Fotografa e o Mestre lê o rótulo.</p>
     <div class="adicionar"><button class="btn jade" data-acao="fotografar">${IC.camara} Fotografar frasco</button><button class="btn" data-acao="novoManual">${IC.mais} À mão</button></div>`;
-  if (ctx.uso.length) html += `<div class="placa"><h2>Em uso <span class="suave peq">(${ctx.uso.length})</span></h2><div class="grelha-frascos">${ordem(ctx.uso).map(p => cartaoFrasco(p, ctx.uso)).join('')}</div></div>`;
-  if (ctx.espera.length) html += `<div class="placa"><h2>Em espera</h2><p class="suave peq">Repetem a função de outro frasco. Entram quando o anterior acabar, para não abrires tudo ao mesmo tempo.</p>
-    <div class="grelha-frascos">${ctx.espera.map(e => cartaoFrasco(e.p, ctx.uso, `<span style="color:var(--ouro)">Depois de ${esc(e.depois.nome)}</span>`, 'espera')).join('')}</div></div>`;
-  if (pausa.length) html += `<div class="placa"><h2>Em pausa</h2><p class="suave peq">Não entram no ritual até os retomares.</p><div class="grelha-frascos">${pausa.map(p => cartaoFrasco(p, ctx.uso, '', 'espera')).join('')}</div></div>`;
+  if (cfg.pronto) html += blocoBase(ctx);
+  if (ctx.sel.faltas.length) html += blocoCompras();
+  if (ctx.uso.length) html += `<div class="placa"><h2>Na rotina <span class="suave peq">(${ctx.uso.length})</span></h2><div class="grelha-frascos">${ordem(ctx.uso).map(p => cartaoFrasco(p, ctx.uso)).join('')}</div></div>`;
   const porLer = produtos.filter(p => p.porLer && !p.fim);
   if (porLer.length) html += `<div class="placa col"><h2>Por ler <span class="suave peq">(${porLer.length})</span></h2><p class="suave peq" style="margin:0">O Mestre ainda não leu estes rótulos. Guardei as fotos: quando ele tiver forças, lê todos de uma vez.</p>
     <div class="lista">${porLer.map(p => `<div class="item" data-acao="verFrasco" data-id="${p.id}">${miniFoto(p)}<div class="t"><b>${nomeP(p)}</b><span>${esc(tipoCurto(p.tipo))}</span></div></div>`).join('')}</div>
     ${temIA() ? `<button class="btn ouro" data-acao="lerPendentes">${IC.ia} Ler agora</button>` : ''}</div>`;
+  if (fora.length) html += `<div class="placa"><h2>Fora da rotina <span class="suave peq">(${fora.length})</span></h2><p class="suave peq">Tens estes frascos, mas a tua pele não precisa deles agora, por isso não entram no ritual. Se quiseres usar algum, toca nele.</p>
+    <div class="lista">${fora.map(({p, motivo}) => `<div class="item" data-acao="verFrasco" data-id="${p.id}">${miniFoto(p)}<div class="t"><b>${nomeP(p)}</b><span>${esc(motivo)}</span></div></div>`).join('')}</div></div>`;
+  if (ctx.espera.length) html += `<div class="placa"><h2>Em espera</h2><p class="suave peq">Repetem a função de outro frasco. Entram quando o anterior acabar, para não abrires tudo ao mesmo tempo.</p>
+    <div class="grelha-frascos">${ctx.espera.map(e => cartaoFrasco(e.p, ctx.uso, `<span style="color:var(--ouro)">Depois de ${esc(e.depois.nome)}</span>`, 'espera')).join('')}</div></div>`;
+  if (livres.length) html += `<div class="placa"><h2>Quando precisares</h2><p class="suave peq">Fora do ritual: usa sempre que sentires falta.</p><div class="lista">${livres.map(p => `<div class="item" data-acao="verFrasco" data-id="${p.id}">${miniFoto(p)}<div class="t"><b>${nomeP(p)}</b><span>${esc(tipoCurto(p.tipo))}</span></div></div>`).join('')}</div></div>`;
+  if (pausa.length) html += `<div class="placa"><h2>Em pausa</h2><p class="suave peq">Não entram no ritual até os retomares.</p><div class="grelha-frascos">${pausa.map(p => cartaoFrasco(p, ctx.uso, '', 'espera')).join('')}</div></div>`;
+  if (!ctx.sel.faltas.length) html += blocoCompras();
   html += blocoRevisao();
   if (acabados.length) html += `<details class="placa simples"><summary><h2 style="display:inline;padding:0">Acabados</h2> <span class="suave peq">(${acabados.length})</span></summary>
     <div class="lista" style="margin-top:10px">${acabados.map(p => `<div class="item" data-acao="verFrasco" data-id="${p.id}">${miniFoto(p)}<div class="t"><b>${nomeP(p)}</b><span>Acabou a ${dataCurta(p.fim)}${p.recomprar === false ? ' · não recomprar' : p.recomprar ? ' · recomprar' : ''}</span></div></div>`).join('')}</div></details>`;
@@ -300,7 +388,13 @@ function blocoRevisao(){
 function folhaFrasco(id){
   const p = produtos.find(x => x.id === id); if (!p) return;
   const ctx = contexto(), emUso = ctx.uso.includes(p), esp = ctx.espera.find(e => e.p === p), v = validadeDe(p);
-  const estado = p.fim ? `Acabou a ${dataCurta(p.fim)}` : p.pausa ? 'Em pausa' : esp ? `Em espera: entra depois de ${esc(esp.depois.nome)}` : 'Em uso';
+  const foraI = ctx.sel.fora.find(f => f.p === p), livre = ctx.sel.livres.includes(p);
+  const estado = p.fim ? `Acabou a ${dataCurta(p.fim)}` : p.pausa ? 'Em pausa' : esp ? `Em espera: entra depois de ${esc(esp.depois.nome)}` : emUso ? 'Na rotina' : livre ? 'Quando precisares (fora do ritual)' : foraI ? 'Fora da rotina' : '—';
+  const porque = emUso ? ctx.sel.porque[p.id] : foraI ? foraI.motivo : '';
+  const escolha = p.fim || p.pausa || esp || p.porLer ? '' : [
+    emUso && p.forcar !== 'usar' ? `<button class="btn" data-acao="forcar" data-id="${p.id}" data-v="nao">Tirar da rotina</button>` : '',
+    (foraI || livre) && !p.forcar ? `<button class="btn jade" data-acao="forcar" data-id="${p.id}" data-v="usar">Usar mesmo assim</button>` : '',
+    p.forcar ? `<button class="btn" data-acao="forcar" data-id="${p.id}" data-v="">Deixar a app decidir</button>` : ''].join('');
   const quando = emUso ? quandoTexto(p, ctx, ctx.plano).texto : '—';
   abrirFolha(`${cab(nomeP(p))}
     ${fotos[p.id] ? `<img class="foto-grande" src="${fotos[p.id]}" alt="">` : ''}
@@ -310,6 +404,7 @@ function folhaFrasco(id){
     <dl class="ficha">
       ${p.marca ? `<dt>Marca</dt><dd>${esc(p.marca)}</dd>` : ''}
       <dt>Estado</dt><dd>${estado}</dd>
+      ${porque ? `<dt>Porquê</dt><dd>${esc(porque)}</dd>` : ''}
       <dt>Quando</dt><dd>${esc(quando)}</dd>
       <dt>Como usar</dt><dd>${esc(modoPadrao(p))}</dd>
       ${p.qtd ? `<dt>Quantidade</dt><dd>${esc(p.qtd)}</dd>` : ''}${p.espera ? `<dt>Espera</dt><dd>${esc(p.espera)}</dd>` : ''}
@@ -317,6 +412,7 @@ function folhaFrasco(id){
       <dt>Aberto</dt><dd>${p.aberto ? dataCurta(p.aberto) : 'Ainda não (marca-se ao usares a primeira vez)'}</dd>
       ${v ? `<dt>Validade</dt><dd>${mesAno(v)}${p.pao ? ` <span class="suave">(${p.pao} meses depois de aberto)</span>` : ''}</dd>` : ''}
     </dl>
+    ${escolha ? `<div class="botoes">${escolha}</div>` : ''}
     <div class="botoes">
       ${!p.fim ? `<button class="btn ouro" data-acao="acabou" data-id="${p.id}">${IC.fim} Acabou</button>` : `<button class="btn" data-acao="reativar" data-id="${p.id}">Voltar a usar</button>`}
       ${p.porLer && temIA() ? `<button class="btn ouro" data-acao="lerPendentes" data-id="${p.id}">${IC.ia} Ler com o Mestre</button>` : ''}
@@ -326,6 +422,43 @@ function folhaFrasco(id){
       <button class="btn" data-acao="editar" data-id="${p.id}">${IC.editar} Editar</button>
       ${temIA() ? `<button class="btn" data-acao="perguntar" data-q="${esc(`Fala-me do ${p.nome}${p.marca ? ' (' + p.marca + ')' : ''}: está a ser bem usado na minha rotina?`)}">${IC.ia} Perguntar</button>` : ''}
       <button class="btn perigo" data-acao="apagar" data-id="${p.id}">${IC.lixo}</button></div>`, 'frasco');
+}
+function botoesProcura(alvo, pesquisa, pergunta){
+  return `<div class="col"><button class="btn ouro" data-acao="verificar" data-v="${alvo}">${IC.camara} Vou comprar: verificar um produto</button>
+    <p class="suave mini" style="margin:-4px 0 0">Tira uma foto na loja ou uma captura de ecrã do site. O Mestre diz se te serve.</p>
+    <div class="botoes">${temIA() ? `<button class="btn" data-acao="perguntar" data-q="${esc(pergunta)}">${IC.ia} Sugestões do Mestre</button>` : ''}
+      <a class="btn" href="${procurarURL(pesquisa)}" target="_blank" rel="noopener">${IC.lupa} Procurar na internet</a>
+      <button class="btn" data-acao="fotografar">${IC.camara} Já tenho um</button></div></div>`;
+}
+function folhaFalta(slot){
+  const ctx = contexto(), f = ctx.sel.faltas.find(x => x.slot === slot), S = SLOTS[slot], tp = PELES[cfg.pele] ? cfg.pele : 'normal';
+  abrirFolha(`${cab('Falta: ' + esc(S.nome))}
+    <div class="tags"><span class="tag ouro">Essencial</span>${f ? `<span class="tag">${SESS_TXT(f.sessoes)}</span>` : ''}</div>
+    <p style="margin:0">${esc(S.porque)}</p>
+    <div class="resposta-mestre"><span class="quem">O que procurar${cfg.pele ? ' para pele ' + esc(PELES[cfg.pele].split(' ')[0].toLowerCase()) : ''}</span>${esc(S.procurar[tp])}</div>
+    ${botoesProcura(slot, S.pesquisa[tp], `Preciso de um ${S.nome.toLowerCase()} para ${f ? SESS_TXT(f.sessoes) : 'a minha rotina'}. Que produtos concretos me aconselhas para a minha pele, à venda em Portugal?`)}`, 'falta');
+}
+function folhaPreoc(c){
+  const [txt, pesq] = PREOC_PROCURAR[c] || ['', c];
+  abrirFolha(`${cab('Para ' + esc(PREOC_CURTO[c] || c))}<div class="tags"><span class="tag agua">Opcional</span></div>
+    <p style="margin:0">Ainda não tens nada na rotina que trate ${esc(PREOC_CURTO[c] || c)}. Não é obrigatório: só se te incomodar.</p>
+    <div class="resposta-mestre"><span class="quem">O que procurar</span>${esc(txt)}</div>
+    ${botoesProcura(c, pesq, `Quero tratar ${PREOC_CURTO[c] || c}. Que produto me aconselhas, a pensar na minha pele e na rotina que já tenho?`)}`, 'falta');
+}
+function folhaCompra(id){
+  const c = compras.find(x => x.id === id); if (!c) return;
+  const [rot, cls] = VER_COMPRA[c.veredicto] || VER_COMPRA.talvez, d = c.dados;
+  abrirFolha(`${cab(esc(d.nome || 'Produto'))}
+    ${fotos['c:' + c.id] ? `<img class="foto-grande" src="${fotos['c:' + c.id]}" alt="">` : ''}
+    <div class="veredicto-compra ${cls}"><b>${rot}</b>${c.papel ? `<span>${esc(c.papel)}</span>` : ''}</div>
+    <div class="tags">${d.marca ? `<span class="tag apagado">${esc(d.marca)}</span>` : ''}<span class="tag">${esc(tipoCurto(d.tipo))}</span>${ativosTags(d)}</div>
+    <div class="resposta-mestre"><span class="quem">O Mestre diz</span>${esc(c.porque)}</div>
+    ${c.atencao ? `<div class="alerta">${IC.alerta}<div>${esc(c.atencao)}</div></div>` : ''}
+    ${c.alternativa ? `<div class="alerta info">${IC.info}<div><b>Em vez disto, procura:</b> ${esc(c.alternativa)}</div></div>` : ''}
+    <div class="botoes"><button class="btn${c.veredicto === 'nao' ? '' : ' jade'}" data-acao="comprei" data-id="${c.id}">${IC.visto} ${c.veredicto === 'nao' ? 'Já o tenho: juntar aos frascos' : 'Comprei: juntar aos frascos'}</button>
+      <button class="btn" data-acao="verifMais" data-id="${c.id}">${IC.camara} Juntar foto dos ingredientes</button>
+      <button class="btn" data-acao="verificar" data-v="${esc(c.alvo || '')}">Verificar outro</button>
+      <button class="btn perigo" data-acao="apagarCompra" data-id="${c.id}" aria-label="Apagar">${IC.lixo}</button></div>`, 'compra');
 }
 function folhaEditar(){
   const r = rascunho, op = (v, txt, sel) => `<option value="${v}"${sel ? ' selected' : ''}>${txt}</option>`;
@@ -407,7 +540,7 @@ function blocoAvaliacao(){
 }
 
 /* ---------- Vista: Mestre ---------- */
-const PERGUNTAS = ['Que produto me falta para a minha pele?', 'Estou a usar tudo bem?', 'Tenho borbulhas novas. O que faço?', 'Ajuda-me a escolher um protetor solar', 'Posso simplificar a rotina?'];
+const PERGUNTAS = ['O que me falta comprar?', 'Estou a usar tudo bem?', 'Tenho borbulhas novas. O que faço?', 'Ajuda-me a escolher um protetor solar', 'Posso simplificar a rotina?'];
 function rMestre(){
   const msgs = conversa.length ? conversa.map(m => m.q === 'eu' ? `<div class="msg eu">${esc(m.t)}</div>`
     : `<div class="msg mestre"><span class="quem">O Mestre</span>${mdLeve(m.t)}${(m.produtos || []).map(s => `<div class="sugestao"><div class="t"><b>${esc(s.nome)}</b>${esc(s.porque || '')}${s.preco ? ` <span class="suave">· ${esc(s.preco)}</span>` : ''}</div><a class="btn icone" href="${procurarURL(s.nome)}" target="_blank" rel="noopener" aria-label="Procurar">${IC.lupa}</a></div>`).join('')}</div>`).join('')
@@ -428,7 +561,8 @@ function rPerfil(){
       <label class="campo">Nome<input type="text" data-campo="pNome" value="${esc(cfg.nome)}" autocomplete="given-name"></label>
       <div><h3>Tipo de pele</h3><div class="chips">${Object.entries(PELES).map(([k, n]) => chip(cfg.pele === k, 'pPele', k, n)).join('')}</div></div>
       <div class="chips">${chip(cfg.sensivel, 'pSensivel', '', 'Reage facilmente (sensível)')}</div>
-      <div><h3>O que te preocupa</h3><div class="chips">${Object.entries(PREOCUPACOES).map(([k, n]) => chip(cfg.preocupacoes.includes(k), 'pPreoc', k, n)).join('')}</div></div></div>
+      <div><h3>O que te preocupa</h3><div class="chips">${Object.entries(PREOCUPACOES).map(([k, n]) => chip(cfg.preocupacoes.includes(k), 'pPreoc', k, n)).join('')}</div>
+        <p class="suave mini" style="margin:8px 0 0">A rotina só inclui tratamentos para o que marcares aqui e para o que os teus registos em Pele mostrarem. Os outros frascos ficam de fora.</p></div></div>
     <div class="placa col"><h2>Ritmo do ritual</h2>
       <div><h3>Noites de esfoliação por semana</h3><div class="chips">${chip(!+cfg.exf, 'pExf', 0, 'Automático')}${[1, 2, 3].map(n => chip(+cfg.exf === n, 'pExf', n, n)).join('')}</div></div>
       <div><h3>Noites de retinoide por semana</h3><div class="chips">${chip(!+cfg.retFixo, 'pRet', 0, 'Automático (sobe aos poucos)')}${[2, 3, 4, 5].map(n => chip(+cfg.retFixo === n, 'pRet', n, n)).join('')}</div></div>

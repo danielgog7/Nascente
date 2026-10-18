@@ -114,6 +114,111 @@ const validadeDe = p => {
   return ds.length ? new Date(Math.min(...ds)) : null;
 };
 
+/* ---------- Rotina enxuta: só os essenciais e os tratamentos para o que a pele tem de facto ---------- */
+const PREOC_CURTO = {acne: 'borbulhas', pontos: 'pontos negros', oleosidade: 'oleosidade', poros: 'poros dilatados', manchas: 'manchas', vermelhidao: 'vermelhidão',
+  desidratacao: 'desidratação', rugas: 'linhas finas', olheiras: 'olheiras', textura: 'textura irregular'};
+// Quanto cada ativo trata cada problema (1 ajuda, 2 trata, 3 tratamento de referência). Um problema fica coberto quando a soma chega ao que é preciso.
+const EFICACIA = {
+  retinoide: {acne: 3, rugas: 3, textura: 2, manchas: 2, poros: 2, pontos: 2, oleosidade: 1},
+  aha: {textura: 3, manchas: 2, rugas: 1, acne: 1, pontos: 1}, bha: {pontos: 3, acne: 2, oleosidade: 2, poros: 2, textura: 2}, pha: {textura: 2, desidratacao: 1},
+  vitc: {manchas: 2, rugas: 2, textura: 1}, niacinamida: {oleosidade: 2, poros: 2, manchas: 2, vermelhidao: 2, acne: 1}, peroxido: {acne: 3},
+  azelaico: {acne: 2, vermelhidao: 2, manchas: 2}, cobre: {rugas: 2}, peptidos: {rugas: 1, olheiras: 1}, hialuronico: {desidratacao: 2},
+  ceramidas: {desidratacao: 2, vermelhidao: 1}, ureia: {desidratacao: 2, textura: 1}, enxofre: {acne: 2, oleosidade: 1}, zinco: {oleosidade: 1, acne: 1},
+  argila: {oleosidade: 2, pontos: 1, poros: 1}, fisico: {textura: 2, pontos: 1}, enzimas: {textura: 2, pontos: 1}, despigmentante: {manchas: 3},
+  bakuchiol: {rugas: 2, acne: 1}, calmante: {vermelhidao: 3}, antioxidante: {rugas: 1, manchas: 1}
+};
+const EFICACIA_TIPO = {olhos: {olheiras: 2, rugas: 1}, oleo: {desidratacao: 2}, mascaraNoite: {desidratacao: 2}, hidratante: {desidratacao: 1}};
+const NECESSIDADE_PELE = {oleosa: {oleosidade: 2}, mista: {oleosidade: 2}, seca: {desidratacao: 2}, sensivel: {}, normal: {}};
+const SINAL_PREOC = {'Zona T oleosa': ['oleosidade', 2], 'Borbulha nova': ['acne', 2], 'Pontos negros': ['pontos', 3], 'Poros dilatados': ['poros', 3],
+  'Descamação': ['desidratacao', 3], 'Manchas': ['manchas', 3], 'Olheiras': ['olheiras', 3], 'Pele baça': ['textura', 2]};
+const ESSENCIAIS = ['limpeza', 'hidratante', 'protetor'];
+
+function forcaPara(p){
+  const f = {}, juntar = (o, menos = 0) => { for (const [c, v] of Object.entries(o)) f[c] = Math.max(f[c] || 0, Math.max(1, v - menos)); };
+  // Produtos de enxaguar só contam pelos ativos que atuam em pouco tempo (gel de limpeza com ácido salicílico ou peróxido), e com menos força.
+  for (const a of ativosDe(p)) if (EFICACIA[a] && (!enxaguar(p) || ['peroxido', 'bha', 'aha', 'enxofre'].includes(a))) juntar(EFICACIA[a], enxaguar(p) ? 1 : 0);
+  if (EFICACIA_TIPO[p.tipo]) juntar(EFICACIA_TIPO[p.tipo]);
+  return f;
+}
+// O que a pele precisa agora: preocupações do perfil (3), tipo de pele (2) e o que os registos das últimas 2 semanas mostram.
+function necessidades(cfg, pele, hoje){
+  const n = {}, origem = {}, por = (c, v, o) => { if (v > (n[c] || 0)){ n[c] = v; origem[c] = o; } };
+  for (const [c, v] of Object.entries(NECESSIDADE_PELE[cfg.pele] || {})) por(c, v, 'tipo');
+  for (const c of cfg.preocupacoes || []) if (PREOC_CURTO[c]) por(c, 3, 'perfil');
+  const rec = (pele || []).filter(r => hoje - deChave(r.d) <= 14 * DIA);
+  if (rec.length){
+    const max = k => Math.max(...rec.map(r => +r[k] || 0)), media = k => rec.reduce((s, r) => s + (+r[k] || 0), 0) / rec.length;
+    if (max('borbulhas') >= 2) por('acne', 3, 'registos');
+    if (media('oleo') >= 2.5) por('oleosidade', 3, 'registos');
+    if (max('irritacao') >= 2) por('vermelhidao', 3, 'registos');
+    if (media('secura') >= 2) por('desidratacao', 3, 'registos');
+    for (const r of rec) for (const sn of r.sinais || []) if (SINAL_PREOC[sn]) por(SINAL_PREOC[sn][0], SINAL_PREOC[sn][1], 'registos');
+  }
+  return {n, origem};
+}
+function motivoFora(p, precisa, rotina){
+  const f = forcaPara(p), cs = Object.keys(f);
+  if (!cs.length){
+    if (p.tipo === 'desmaq') return 'Só faz falta se usares maquilhagem ou protetor resistente à água. O gel de limpeza chega.';
+    if (p.tipo === 'tonico') return 'Tónico sem ativos: é um passo a mais que não acrescenta nada.';
+    if (p.tipo === 'outro') return 'Não sei para que serve. Edita-o ou pergunta ao Mestre.';
+    return 'Não acrescenta nada à tua rotina.';
+  }
+  const meus = cs.filter(c => precisa[c]);
+  const lista = l => l.length > 1 ? l.slice(0, -1).join(', ') + ' e ' + l[l.length - 1] : l[0];
+  if (!meus.length) return `Serve para ${lista(cs.sort((a, b) => f[b] - f[a]).slice(0, 3).map(c => PREOC_CURTO[c]))}: não é o que a tua pele precisa agora.`;
+  const outros = rotina.filter(o => !ESSENCIAIS.includes(o.tipo) && meus.some(c => forcaPara(o)[c]));
+  return outros.length ? `Já tens ${lista(outros.slice(0, 2).map(o => o.nome))} para ${lista(meus.slice(0, 2).map(c => PREOC_CURTO[c]))}. Não precisas dos dois.` : 'A tua rotina já trata disso. Seria um passo a mais.';
+}
+function escolherRotina(uso, cfg, pele, hoje){
+  const {n: precisa, origem} = necessidades(cfg, pele, hoje), resto = Object.assign({}, precisa);
+  const rotina = [], fora = [], livres = [], cand = [], porque = {};
+  const aplicar = p => { for (const [c, v] of Object.entries(forcaPara(p))) if (resto[c]) resto[c] = Math.max(0, resto[c] - v); };
+  // Um problema conta como tratado quando falta no máximo 1 ponto: um bom tratamento por problema chega.
+  const ganho = p => Object.entries(forcaPara(p)).reduce((s, [c, v]) => s + ((resto[c] || 0) >= 2 ? Math.min(resto[c], v) : 0), 0);
+  const tratados = p => Object.keys(forcaPara(p)).filter(c => precisa[c]).map(c => PREOC_CURTO[c]);
+  for (const p of uso){
+    if (p.tipo === 'labios' && p.forcar !== 'usar'){ livres.push(p); continue; }
+    if (p.forcar === 'nao'){ fora.push({p, motivo: 'Tiraste-o da rotina.'}); continue; }
+    if (p.forcar === 'usar'){ rotina.push(p); porque[p.id] = 'Escolheste usá-lo.'; continue; }
+    if (p.porLer){ fora.push({p, motivo: 'Ainda por ler: o Mestre ainda não identificou este frasco.'}); continue; }
+    if (p.veredicto === 'evitar'){ fora.push({p, motivo: 'O Mestre desaconselha-o para a tua pele.'}); continue; }
+    if (p.veredicto === 'dispensavel'){ fora.push({p, motivo: 'O Mestre considera-o dispensável para a tua pele.'}); continue; }
+    cand.push(p);
+  }
+  // 1. Essenciais: limpeza, hidratante e protetor (a fila já deixou só um de cada função).
+  const limps = cand.filter(p => p.tipo === 'limpeza'), suaves = limps.filter(p => !medicada(p));
+  const essenciais = [...(suaves.length ? suaves : limps.slice(0, 1)), ...cand.filter(p => p.tipo === 'hidratante' || p.tipo === 'protetor')];
+  if (!limps.length){ const d = cand.find(p => p.tipo === 'desmaq'); if (d) essenciais.push(d); }
+  for (const p of essenciais){ rotina.push(p); porque[p.id] = 'Essencial: ' + tipoCurtoM(p.tipo).toLowerCase() + '.'; cand.splice(cand.indexOf(p), 1); }
+  for (const p of cand.filter(p => p.veredicto === 'essencial')){ rotina.push(p); porque[p.id] = 'O Mestre considera-o essencial para a tua pele.'; cand.splice(cand.indexOf(p), 1); }
+  rotina.forEach(aplicar);
+  // 2. Tratamentos: escolhe o que trata mais do que ainda falta; para quando já está tudo coberto.
+  for (let n = 0; n < 5; n++){
+    let melhor = null, mg = 0;
+    for (const p of cand){
+      const g = ganho(p); if (g <= 0) continue;
+      const desempata = melhor && g === mg && ((p.naRotina ? 1 : 0) - (melhor.naRotina ? 1 : 0) || PRIORIDADE.indexOf(ativoPrincipal(melhor)) - PRIORIDADE.indexOf(ativoPrincipal(p))) > 0;
+      if (g > mg || desempata){ melhor = p; mg = g; }
+    }
+    if (!melhor) break;
+    porque[melhor.id] = 'Trata: ' + tratados(melhor).slice(0, 3).join(', ') + '.';
+    aplicar(melhor); rotina.push(melhor); cand.splice(cand.indexOf(melhor), 1);
+  }
+  for (const p of cand) fora.push({p, motivo: motivoFora(p, precisa, rotina)});
+  // 3. O que falta na rotina base (por sessão).
+  const tem = (s, f) => rotina.some(p => { const q = quandoEfetivo(p, rotina); return (q === 'ambos' || q === (s === 'm' ? 'manha' : 'noite')) && f(p, s); });
+  const faltas = [
+    ['limpeza', (p) => p.tipo === 'limpeza' || p.tipo === 'desmaq', ['m', 'n']],
+    ['hidratante', (p, s) => p.tipo === 'hidratante' || (s === 'n' && p.tipo === 'mascaraNoite'), ['m', 'n']],
+    ['protetor', (p) => p.tipo === 'protetor' || temAtivo(p, 'spf'), ['m']]
+  ].map(([slot, f, ss]) => ({slot, sessoes: ss.filter(s => !tem(s, f))})).filter(x => x.sessoes.length);
+  const porCobrir = Object.entries(resto).filter(([, v]) => v >= 2).map(([c, v]) => ({c, falta: v, origem: origem[c]}));
+  const cobertura = Object.keys(precisa).map(c => ({c, origem: origem[c], por: rotina.filter(p => forcaPara(p)[c]), falta: resto[c]}));
+  return {rotina, fora, livres, faltas, porCobrir, cobertura, precisa, porque};
+}
+const tipoCurtoM = t => (TIPOS[t] || TIPOS.outro)[0].split(/ [\/(]/)[0];
+
 /* ---------- Fila: com produtos repetidos, um está em uso e os outros esperam ---------- */
 function calcularFila(produtos){
   const vivos = produtos.filter(p => !p.fim && !p.pausa), grupos = {};
@@ -234,6 +339,12 @@ function sessao(data, s, ctx, plano){
     if (plano.semanais[p.id] && !plano.semanais[p.id].includes(dow)) continue;
     passos.push(p);
   }
+  for (const t of ['limpeza', 'hidratante', 'protetor']){
+    const ds = passos.filter(p => p.tipo === t); if (ds.length < 2) continue;
+    const alvoQ = s === 'm' ? 'manha' : 'noite';
+    const fica = (t === 'limpeza' ? ds.find(p => s === 'm' ? medicada(p) : !medicada(p)) : null) || ds.find(p => p.quando === alvoQ) || ds[0];
+    passos = passos.filter(p => p.tipo !== t || p === fica);
+  }
   passos.sort((a, b) => ordemDe(a) - ordemDe(b));
   // Pares incompatíveis: ficam os mais importantes (retinoide > esfoliante > peróxido > vitamina C > cobre); os outros entram noutros dias.
   const escolhidos = [];
@@ -264,13 +375,6 @@ function paresIncompativeis(ctx, plano){
     r.push({a: ctx.uso[a], b: ctx.uso[b], gravidade: c[2], porque: c[3], solucao: c[4], qa: qa.texto, qb: qb.texto, juntos});
   }
   return r;
-}
-function faltas(uso){
-  const f = [];
-  if (!uso.some(p => p.tipo === 'limpeza' || p.tipo === 'desmaq')) f.push(['limpeza', 'um produto de limpeza suave']);
-  if (!uso.some(p => p.tipo === 'hidratante' || p.tipo === 'mascaraNoite')) f.push(['hidratante', 'um hidratante']);
-  if (!uso.some(p => p.tipo === 'protetor' || temAtivo(p, 'spf'))) f.push(['protetor', uso.some(p => ehRet(p) || ehExf(p) || temAtivo(p, 'vitc')) ? 'protetor solar (obrigatório com retinoides, ácidos e vitamina C)' : 'protetor solar']);
-  return f;
 }
 
 /* ---------- Reinos de cultivo (constância) ---------- */

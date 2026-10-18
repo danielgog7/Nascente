@@ -30,23 +30,28 @@ function chaveDeOutraApp(){
 
 /* ---------- Textos de contexto para o Mestre ---------- */
 const PT = 'Escreve em português de Portugal (PT-PT, nunca do Brasil): trata o utilizador por "tu" e usa termos de Portugal (creme, protetor solar, borbulhas, farmácia, parafarmácia).';
-const MESTRE = 'És o Mestre da Nascente: um sábio sereno com conhecimentos profundos de dermatologia e cosmética (ao nível de um farmacêutico e de um dermatologista). Falas com calma e clareza, com um toque subtil de mestre de cultivo wuxia (no máximo uma imagem poética curta, nunca à custa da clareza). Dás conselhos práticos, seguros e baseados em evidência. Não receitas medicamentos sujeitos a receita médica; se houver acne grave (nódulos ou quistos dolorosos), sinais de infeção, reação alérgica forte, ou algo que não melhora em 8 a 12 semanas, recomendas um dermatologista.';
+const MESTRE = 'És o Mestre da Nascente: um sábio sereno com conhecimentos profundos de dermatologia e cosmética (ao nível de um farmacêutico e de um dermatologista). Falas com calma e clareza, com um toque subtil de mestre de cultivo wuxia (no máximo uma imagem poética curta, nunca à custa da clareza). Dás conselhos práticos, seguros e baseados em evidência. Defendes rotinas simples: só o essencial (limpeza, hidratante e protetor solar) e um tratamento para cada problema que a pessoa tem de facto; nunca acrescentas produtos só porque existem ou porque ela já os tem. Não receitas medicamentos sujeitos a receita médica; se houver acne grave (nódulos ou quistos dolorosos), sinais de infeção, reação alérgica forte, ou algo que não melhora em 8 a 12 semanas, recomendas um dermatologista.';
 const perfilTxt = () => `${PELES[cfg.pele] || 'tipo não indicado'}${cfg.sensivel ? ', reage facilmente (sensível)' : ''}; preocupações: ${cfg.preocupacoes.map(k => PREOCUPACOES[k]).filter(Boolean).join(', ') || 'nenhuma indicada'}.`;
 const produtoTxt = p => `${p.nome}${p.marca ? ' (' + p.marca + ')' : ''}: ${(TIPOS[p.tipo] || TIPOS.outro)[0]}; ativos: ${ativosDe(p).map(a => ATIVOS[a]).join(', ') || 'sem ativos fortes'}${p.conc ? '; ' + p.conc : ''}`;
 function inventarioTxt(ctx){
   const l = [];
-  for (const p of ctx.uso) l.push(`- [${p.id}] ${produtoTxt(p)} | em uso: ${quandoTexto(p, ctx, ctx.plano).texto}`);
+  for (const p of ctx.uso) l.push(`- [${p.id}] ${produtoTxt(p)} | na rotina: ${quandoTexto(p, ctx, ctx.plano).texto} (${ctx.sel.porque[p.id] || ''})`);
+  for (const f of ctx.sel.fora) l.push(`- [${f.p.id}] ${produtoTxt(f.p)} | fora da rotina: ${f.motivo}`);
+  for (const p of ctx.sel.livres) l.push(`- [${p.id}] ${produtoTxt(p)} | fora do ritual, usa quando precisar`);
   for (const e of ctx.espera) l.push(`- [${e.p.id}] ${produtoTxt(e.p)} | em espera (repete a função de ${e.depois.nome})`);
   for (const p of produtos.filter(x => x.pausa && !x.fim)) l.push(`- [${p.id}] ${produtoTxt(p)} | em pausa`);
   return l.join('\n') || '(nenhum)';
 }
+const ORIGEM_TXT = {perfil: 'marcado no perfil', tipo: 'pelo tipo de pele', registos: 'visto nos registos'};
+const necessidadesTxt = ctx => ctx.sel.cobertura.map(c => `${PREOC_CURTO[c.c]} (${ORIGEM_TXT[c.origem]}): ${c.por.length ? 'tratado com ' + c.por.map(p => p.nome).join(', ') : 'sem tratamento'}`).join('; ') || 'nenhuma preocupação ativa: só o essencial';
+const faltasTxt = ctx => ctx.sel.faltas.map(f => `${SLOTS[f.slot].nome} (${SESS_TXT(f.sessoes)})`).join(', ') || 'nada';
 const registoTxt = r => `${r.d}: geral ${medidaVal(r, 'geral')}, oleosidade ${medidaVal(r, 'oleo')}, secura ${medidaVal(r, 'secura')}, borbulhas ${medidaVal(r, 'borbulhas')}, irritação ${medidaVal(r, 'irritacao')}${(r.sinais || []).length ? '; sinais: ' + r.sinais.join(', ') : ''}${r.nota ? '; nas palavras dele: "' + r.nota + '"' : ''}`;
 const peleTxt = (n, exceto) => pele.filter(r => r.d !== exceto).sort((a, b) => a.d < b.d ? 1 : -1).slice(0, n).reverse().map(registoTxt).join('\n') || '(sem registos)';
 function rotinaTxt(ctx){
   const a = agoraRitual(), m = sessao(a.data, 'm', ctx, ctx.plano), n = sessao(a.data, 'n', ctx, ctx.plano), nomes = se => se.passos.map(p => p.nome).join(' > ') || '(nada)';
   return `Manhã: ${nomes(m)}\nNoite de hoje (${NOITES[n.noite][0]}): ${nomes(n)}\nNa semana: ${ctx.plano.R} noites de retinoide, ${ctx.plano.E} de esfoliação.`;
 }
-const linhaTempoTxt = () => produtos.filter(p => p.inicio || p.fim).map(p => `- [${p.id}] ${p.nome}: entrou ${p.inicio || '?'}${p.fim ? ', acabou ' + p.fim : ''}${p.pausa ? ', em pausa' : ''}`).join('\n') || '(sem datas)';
+const linhaTempoTxt = () => produtos.filter(p => p.inicio || p.fim).map(p => `- [${p.id}] ${p.nome}: entrou na rotina ${p.inicio || '?'}${p.saida ? ', saiu da rotina ' + p.saida : ''}${p.fim ? ', acabou ' + p.fim : ''}${p.pausa ? ', em pausa' : ''}`).join('\n') || '(sem datas)';
 
 /* ---------- Pedidos ao Mestre ---------- */
 function normalizarProduto(o){
@@ -69,6 +74,44 @@ Responde só com JSON:
 {"nome":"nome do produto como aparece no rótulo","marca":"","tipo":"uma das chaves","ativos":["chaves"],"concentracao":"ex.: retinol 0,3%; niacinamida 10%, ou vazio","quando":"manha|noite|ambos","vezes":número de vezes por semana para começar (7 = todos os dias),"modo":"como aplicar, 1 a 2 frases práticas","quantidade":"ex.: 2 a 3 gotas","espera":"tempo de espera antes do passo seguinte, ou vazio","aviso":"precaução importante, ou vazio","pao":meses de validade depois de aberto (símbolo do frasco aberto, ex.: 12M; se não se vir, o habitual para este tipo),"validade":"AAAA-MM se a data de validade estiver visível, senão vazio","funcao":"para que serve, numa frase","adequado":"numa frase: se é adequado à pele do utilizador e porquê","duvida":"vazio, ou o que não conseguiste confirmar"}`;
   return normalizarProduto(lerJSON(await gemini(prompt, {imagens})));
 }
+async function avaliarCompra(imagens, alvo){
+  const ctx = contexto(), alvoTxt = SLOTS[alvo] ? `${SLOTS[alvo].nome} (falta na rotina base)` : PREOC_CURTO[alvo] ? `um tratamento para ${PREOC_CURTO[alvo]}` : '';
+  const prompt = `${MESTRE}
+O utilizador está a pensar comprar este produto (foto na loja ou captura de ecrã de um site; pode haver uma segunda imagem com os ingredientes). Identifica-o e diz se lhe serve.
+Pele: ${perfilTxt()}
+O que a pele precisa agora: ${necessidadesTxt(ctx)}.
+Rotina atual:
+${rotinaTxt(ctx)}
+Frascos:
+${inventarioTxt(ctx)}
+Falta na rotina base: ${faltasTxt(ctx)}.
+${alvoTxt ? `Ele procura especificamente: ${alvoTxt}.` : ''}
+Critérios: "sim" se preenche uma falta da rotina base ou trata um problema que ele tem e que ainda não está coberto, e é adequado ao tipo de pele dele; "nao" se não é adequado à pele dele, se repete o que ele já tem, ou se não faz falta; "talvez" se serve mas há uma opção claramente melhor ou faltam dados (por exemplo, ingredientes ilegíveis). Sê honesto: não aprovar é melhor do que ele gastar dinheiro em algo a mais.
+Tipos possíveis (campo "tipo"): ${Object.entries(TIPOS).map(([k, t]) => k + ' = ' + t[0]).join('; ')}.
+Ativos possíveis (campo "ativos"): ${Object.entries(ATIVOS).map(([k, n]) => k + ' = ' + n).join('; ')}.
+${PT}
+Responde só com JSON: {"nome":"","marca":"","tipo":"uma das chaves","ativos":["chaves"],"concentracao":"","veredicto":"sim|nao|talvez","papel":"o lugar que ocuparia na rotina, ex.: hidratante de manhã e à noite","porque":"2 a 3 frases","atencao":"cuidado ou conflito com o que já usa, ou vazio","alternativa":"se não for sim: o que procurar em vez disto, ou vazio","quando":"manha|noite|ambos","vezes":7,"modo":"","quantidade":"","espera":"","aviso":"","pao":12,"funcao":""}`;
+  const o = lerJSON(await gemini(prompt, {imagens})), txt = (v, n = 400) => String(v || '').trim().slice(0, n);
+  return {dados: normalizarProduto(o), veredicto: ['sim', 'nao', 'talvez'].includes(o.veredicto) ? o.veredicto : 'talvez', papel: txt(o.papel, 160), porque: txt(o.porque, 600), atencao: txt(o.atencao), alternativa: txt(o.alternativa)};
+}
+let verif = null;
+function verificarProduto(alvo){
+  if (!temIA()){ fecharFolha(); toast('Para o Mestre verificar produtos, liga a IA no Perfil.', 4000); return irPara('vPerfil'); }
+  escolherFoto(async f => {
+    try { const [ia, mini] = await Promise.all([comprimir(f, 1280, .82), comprimir(f, 420, .8)]); verif = {id: uid(), imgs: [ia], thumb: mini, alvo: alvo || ''}; correrVerificacao(); }
+    catch(e){ toast(e.message); }
+  });
+}
+async function correrVerificacao(){
+  abrirFolha(aMeditar(verif.imgs.length > 1 ? 'O Mestre lê os ingredientes…' : 'O Mestre avalia o produto…'), 'ia');
+  try {
+    const o = await avaliarCompra(verif.imgs, verif.alvo), c = Object.assign({id: verif.id, ts: Date.now(), alvo: verif.alvo}, o);
+    compras = [c, ...compras.filter(x => x.id !== c.id)].slice(0, 20); LS.set('compras', compras);
+    fotoGuardar('c:' + c.id, verif.thumb); fotoGuardar('c:' + c.id + ':ia', verif.imgs.slice(-3));
+    if (vista === 'vFrascos') rFrascos();
+    if (folhaAtual === 'ia') folhaCompra(c.id);
+  } catch(e){ if (folhaAtual === 'ia'){ fecharFolha(); toast(e.message, 4500); } }
+}
 async function reverFrascos(){
   if (!temIA()) return irPara('vPerfil');
   abrirFolha(aMeditar('O Mestre medita sobre os teus frascos…'), 'ia');
@@ -80,8 +123,11 @@ Frascos (o id está entre parênteses retos):
 ${inventarioTxt(ctx)}
 Registos recentes da pele (0 a 4; geral: mais é melhor; restantes: mais é pior):
 ${peleTxt(8)}
-Significado: "essencial" = base da rotina para esta pele (limpeza, hidratante, protetor e o tratamento principal para as preocupações dele); "util" = traz benefício mas não é indispensável; "dispensavel" = repete outro, não traz nada a esta pele ou complica a rotina, por isso gasta-se e não se recompra; "evitar" = pode piorar a pele dele. "recomprar" = true só se valer a pena comprar outro quando acabar.
-Em "faltam" indica só o que faz mesmo falta (máximo 3), com as características a procurar e até 3 exemplos concretos à venda em Portugal (farmácias, parafarmácias, supermercados), de gamas de preço diferentes.
+O que a pele precisa agora: ${necessidadesTxt(ctx)}.
+Falta na rotina base: ${faltasTxt(ctx)}.
+A app usa os teus vereditos para decidir o que entra no ritual: "essencial" entra sempre; "dispensavel" e "evitar" ficam de fora; "util" entra só se tratar algo que ainda não está coberto.
+Significado: "essencial" = base da rotina (limpeza, hidratante, protetor) ou o tratamento principal para um problema que ele tem de facto; "util" = trata um problema que ele tem, mas não é indispensável; "dispensavel" = não trata nada que ele tenha, repete outro ou complica a rotina (gasta-se ou dá-se, e não se recompra); "evitar" = pode piorar a pele dele. Um produto para um problema que ele não tem (por exemplo, vermelhidão sem vermelhidão) é "dispensavel". "recomprar" = true só se valer a pena comprar outro quando acabar.
+Em "faltam" indica primeiro o que falta na rotina base e depois só o que faz mesmo falta (máximo 3), com as características a procurar e até 3 exemplos concretos à venda em Portugal (farmácias, parafarmácias, supermercados), de gamas de preço diferentes.
 ${PT}
 Responde só com JSON: {"resumo":"2 a 4 frases: o que está bem e o que simplificar","produtos":[{"id":"","veredicto":"essencial|util|dispensavel|evitar","recomprar":true,"nota":"1 frase"}],"faltam":[{"tipo":"","porque":"","procurar":"","exemplos":[""]}],"alertas":["avisos importantes, se houver"]}`;
   try {
@@ -278,22 +324,25 @@ function guardarFrasco(){
   if (r.fotoNova && r.foto) fotoGuardar(p.id, r.foto);
   if (r.porLer && r.fotosIA.length){ p.porLer = true; fotoGuardar(p.id + ':ia', r.fotosIA.slice()); }
   else if (!r.porLer && p.porLer && r.fotosIA.length){ p.porLer = false; fotoApagar(p.id + ':ia'); }
+  if (r.deCompra){ compras = compras.filter(c => c.id !== r.deCompra); LS.set('compras', compras); fotoApagar('c:' + r.deCompra); fotoApagar('c:' + r.deCompra + ':ia'); }
   guardarProdutos(); fecharFolha(); rascunho = null; renderAtual();
   const ctx = contexto(), esp = ctx.espera.find(e => e.p === p);
-  toast(esp ? `${p.nome} fica em espera: entra quando ${esp.depois.nome} acabar.` : `${p.nome}: ${quandoTexto(p, ctx, ctx.plano).texto}.`, 4200);
+  const foraI = ctx.sel.fora.find(f => f.p === p);
+  toast(esp ? `${p.nome} fica em espera: entra quando ${esp.depois.nome} acabar.` : foraI ? `${p.nome} fica fora da rotina: ${foraI.motivo}` : ctx.uso.includes(p) ? `${p.nome}: ${quandoTexto(p, ctx, ctx.plano).texto}.` : `${p.nome} guardado.`, 4800);
 }
 function folhaAcabou(p){
-  const ctx = contexto(), seguinte = ctx.uso.find(o => chaveFila(o) === chaveFila(p));
-  const essencial = p.recomprar === true || (p.recomprar !== false && (TIPOS[p.tipo] || TIPOS.outro)[4] && !medicada(p));
+  const ctx = contexto(), seguinte = ctx.uso.find(o => o !== p && chaveFila(o) === chaveFila(p)) || ctx.uso.find(o => o.tipo === p.tipo && ESSENCIAIS.includes(p.tipo));
+  const falta = ctx.sel.faltas.find(f => f.slot === p.tipo || (f.slot === 'limpeza' && p.tipo === 'desmaq'));
   const lista = ctx.uso.slice().sort((a, b) => ordemDe(a) - ordemDe(b));
   let corpo;
   if (seguinte) corpo = `<p>Passa a usar o <b>${nomeP(seguinte)}</b>. Já entrou no teu ritual, no mesmo lugar.</p>`;
-  else if (essencial) corpo = `<p>Precisas de um novo <b>${esc(tipoCurto(p.tipo).toLowerCase())}</b>: é um passo essencial do teu ritual.</p>
-    <div class="botoes">${temIA() ? `<button class="btn ouro" data-acao="perguntar" data-q="${esc(`Acabou-se o meu ${p.nome}. Que ${tipoCurto(p.tipo).toLowerCase()} devo comprar para a minha pele?`)}">${IC.ia} O que comprar?</button>` : ''}
+  else if (falta) corpo = `<p>Precisas de um novo <b>${esc(SLOTS[falta.slot].nome.toLowerCase())}</b> para ${SESS_TXT(falta.sessoes)}: é um passo essencial do teu ritual.</p>
+    <div class="resposta-mestre"><span class="quem">O que procurar</span>${esc(SLOTS[falta.slot].procurar[PELES[cfg.pele] ? cfg.pele : 'normal'])}</div>
+    <div class="botoes"><button class="btn ouro" data-acao="verificar" data-v="${falta.slot}">${IC.camara} Verificar um produto</button>
     <a class="btn" href="${procurarURL(p.marca ? p.marca + ' ' + p.nome : p.nome)}" target="_blank" rel="noopener">${IC.lupa} Procurar o mesmo</a></div>`;
   else corpo = `<p>Não precisas de o substituir. ${lista.length ? 'Continua só com estes:' : ''}</p>${lista.length ? `<div class="lista">${lista.map(o => `<div class="item">${miniFoto(o)}<div class="t"><b>${nomeP(o)}</b><span>${esc(tipoCurto(o.tipo))}</span></div></div>`).join('')}</div>` : ''}`;
-  const falta = faltas(ctx.uso);
-  abrirFolha(`${cab('Acabou: ' + nomeP(p))}${corpo}${falta.length && !essencial ? falta.map(([, t]) => `<div class="alerta">${IC.alerta}<div>Falta-te ${esc(t)}.</div></div>`).join('') : ''}`, 'acabou');
+  const outras = ctx.sel.faltas.filter(f => f !== falta);
+  abrirFolha(`${cab('Acabou: ' + nomeP(p))}${corpo}${outras.map(f => `<div class="alerta" data-acao="verFalta" data-v="${f.slot}">${IC.alerta}<div>Também te falta ${esc(SLOTS[f.slot].nome.toLowerCase())} (${SESS_TXT(f.sessoes)}).</div></div>`).join('')}`, 'acabou');
 }
 
 /* ---------- Ritual ---------- */
@@ -586,6 +635,30 @@ const ACOES = {
     apagados[produtos[i].id] = Date.now(); fotoApagar(produtos[i].id); fotoApagar(produtos[i].id + ':ia'); produtos.splice(i, 1); guardarProdutos(); fecharFolha(); renderAtual();
   },
   reverFrascos,
+  verFalta: el => folhaFalta(el.dataset.v),
+  verPreoc: el => folhaPreoc(el.dataset.v),
+  verificar: el => verificarProduto(el.dataset.v || ''),
+  verCompra: el => folhaCompra(el.dataset.id),
+  verifMais(el){
+    const c = compras.find(x => x.id === el.dataset.id); if (!c) return;
+    escolherFoto(async f => {
+      try { const ia = await comprimir(f, 1280, .82), ant = fotos['c:' + c.id + ':ia'] || [];
+        verif = {id: c.id, imgs: [...ant.slice(0, 2), ia], thumb: fotos['c:' + c.id] || ia, alvo: c.alvo}; correrVerificacao(); }
+      catch(e){ toast(e.message); }
+    });
+  },
+  comprei(el){
+    const c = compras.find(x => x.id === el.dataset.id); if (!c) return;
+    rascunho = novoRascunho(Object.assign({}, c.dados, {foto: fotos['c:' + c.id] || '', fotoNova: !!fotos['c:' + c.id], fotosIA: [], adequado: c.porque, duvida: '', deCompra: c.id}));
+    folhaEditar();
+  },
+  apagarCompra(el){ compras = compras.filter(c => c.id !== el.dataset.id); LS.set('compras', compras); fotoApagar('c:' + el.dataset.id); fotoApagar('c:' + el.dataset.id + ':ia'); fecharFolha(); renderAtual(); },
+  forcar(el){
+    const p = produtos.find(x => x.id === el.dataset.id); if (!p) return;
+    if (el.dataset.v) p.forcar = el.dataset.v; else delete p.forcar;
+    p.atualizado = Date.now(); guardarProdutos(); renderAtual(); folhaFrasco(p.id);
+    toast(el.dataset.v === 'usar' ? 'Entrou na rotina.' : el.dataset.v === 'nao' ? 'Saiu da rotina.' : 'A app volta a decidir.');
+  },
   lerPendentes: el => lerPendentes(el.dataset.id ? produtos.filter(p => p.id === el.dataset.id) : null),
   falar(el){ const alvo = document.querySelector(`[data-campo="${el.dataset.alvo}"]`) || document.getElementById(el.dataset.alvo); if (alvo) ouvir(el, alvo); },
   fSinal(el){ alternar(peleForm.sinais, el.dataset.v); el.classList.toggle('on'); },
@@ -620,7 +693,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'pergunta'){ e.preventDefault(); ACOES.enviarPergunta(); }
   if (e.key === 'Escape' && !$('#folha').hidden) fecharFolha();
 });
-const CLICAVEL = '.btn, .chip, .item, .frasco, .dia, #nav button, .abas button, .marcar';
+const CLICAVEL = '.btn, .chip, .item, .frasco, .dia, #nav button, .abas button, .marcar, .slot, .alerta[data-acao]';
 document.addEventListener('pointerdown', e => {
   const el = e.target.closest(CLICAVEL);
   onda(e.clientX, e.clientY, el ? .5 : 1);

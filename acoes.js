@@ -16,17 +16,7 @@ async function listarModelos(){
   if (nomes.length && !nomes.includes(cfg.modelo)) cfg.modelo = nomes[0];
   guardarCfg(); return nomes;
 }
-// As outras apps (Forja, Garfada, Mirante) vivem no mesmo endereço: se já houver lá uma chave do Gemini, oferece-se para a usar.
-function chaveDeOutraApp(){
-  try {
-    for (let i = 0; i < localStorage.length; i++){
-      const k = localStorage.key(i); if (!k || k.startsWith('nascente.')) continue;
-      const m = String(localStorage.getItem(k) || '').match(/"(AIza[0-9A-Za-z_\-]{30,})"/);
-      if (m) return m[1];
-    }
-  } catch(e){}
-  return '';
-}
+// A chave do Gemini de outra app deste aparelho é encontrada pelo ia-comum.js (IA.chaveGemini).
 
 /* ---------- Textos de contexto para o Mestre ---------- */
 const PT = 'Escreve em português de Portugal (PT-PT, nunca do Brasil): trata o utilizador por "tu" e usa termos de Portugal (creme, protetor solar, borbulhas, farmácia, parafarmácia).';
@@ -593,7 +583,6 @@ const ACOES = {
   pExf(el){ cfg.exf = +el.dataset.v; guardarCfg(true); rPerfil(); },
   pRet(el){ cfg.retFixo = +el.dataset.v; guardarCfg(true); rPerfil(); },
   pHora(el){ cfg.horaNoite = +el.dataset.v; guardarCfg(true); rPerfil(); },
-  usarChaveAlheia(){ cfg.chave = chaveDeOutraApp(); guardarCfg(); rPerfil(); ACOES.testarIA(); },
   verChave(){ const i = $('#pChave'); i.type = i.type === 'password' ? 'text' : 'password'; },
   async testarIA(){
     const i = $('#pChave'), st = $('#iaTeste'); if (i) cfg.chave = i.value.trim(); guardarCfg();

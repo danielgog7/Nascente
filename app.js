@@ -187,7 +187,8 @@ function mdLeve(txt){
   if (lista) out.push('</ul>');
   return out.join('');
 }
-const temIA = () => !!(cfg.chave || IA.temGroq());
+// Há IA: a chave própria, a de outra app deste aparelho (ia-comum.js) ou a do Groq.
+const temIA = () => IA.temIA(cfg.chave);
 const procurarURL = q => 'https://www.google.com/search?q=' + encodeURIComponent(q + ' comprar preço Portugal');
 
 /* ---------- Contexto da rotina ---------- */
@@ -644,7 +645,7 @@ function rMestre(){
 
 /* ---------- Vista: Perfil ---------- */
 function rPerfil(){
-  const chaveAlheia = !cfg.chave && chaveDeOutraApp();
+  const origem = IA.origemChave(cfg.chave);
   $('#vPerfil').innerHTML = `<h1 class="titulo-vista">Perfil</h1>
     <div class="placa col"><h2>A tua pele</h2>
       <label class="campo">Nome<input type="text" data-campo="pNome" value="${esc(cfg.nome)}" autocomplete="given-name"></label>
@@ -658,7 +659,8 @@ function rPerfil(){
       <div><h3>A partir de que hora mostro o ritual da noite</h3><div class="chips">${[12, 15, 18, 20].map(n => chip(+cfg.horaNoite === n, 'pHora', n, n + 'h')).join('')}</div></div></div>
     <div class="placa col"><h2>Inteligência artificial</h2>
       <p class="suave peq" style="margin:0">O Mestre usa o Gemini da Google, com uma chave gratuita tua, guardada só neste dispositivo. Para criar: abre <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com/app/apikey</a>, entra com a conta Google, toca em "Create API key" e cola a chave aqui.</p>
-      ${chaveAlheia ? `<div class="alerta info">${IC.info}<div class="cresce">Encontrei a chave que já usas noutra app tua (Forja ou Garfada).<div style="margin-top:6px"><button class="btn peq-btn" data-acao="usarChaveAlheia">Usar a mesma chave</button></div></div></div>` : ''}
+      ${!cfg.chave && origem ? `<div class="alerta info">${IC.info}<div class="cresce">Sem chave própria: o Mestre usa a chave do Gemini ${origem === 'outra app tua' ? 'de outra app tua' : 'da ' + esc(origem)}, neste aparelho. Se quiseres, cola aqui uma chave só para a Nascente.</div></div>`
+        : !cfg.chave && IA.temGroq() ? `<div class="alerta info">${IC.info}<div class="cresce">Sem chave do Gemini: o Mestre usa o Groq de reserva.</div></div>` : ''}
       <label class="campo">Chave do Gemini<div class="linha"><input type="password" id="pChave" value="${esc(cfg.chave)}" placeholder="Cola aqui a chave" autocomplete="off"><button class="btn icone" data-acao="verChave" aria-label="Ver">${IC.lupa}</button></div></label>
       <div class="linha"><button class="btn jade" data-acao="testarIA">Guardar e testar</button><span class="suave mini cresce" id="iaTeste">${temIA() ? 'Modelo: ' + esc(cfg.modelo) : ''}</span></div></div>
     <div class="placa col"><h2>IA de reserva (Groq)</h2>${IA.htmlGroq({sub: 'suave peq', pri: 'btn jade'})}</div>

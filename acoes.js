@@ -350,8 +350,10 @@ function verificarCompleto(dia, s, el){
   const ctx = contexto(), se = passosDoDia(deChave(dia), s, ctx), r = registos[dia], feitos = r[s] || {};
   const tudo = se.passos.length && se.passos.every(p => feitos[p.id]);
   if (tudo && !r[s + 'F']){
-    const antes = reino(pontos()).i; r[s + 'F'] = Date.now(); const depois = reino(pontos());
-    festa(depois.i > antes ? 'Ascendeste' : 'Ritual completo', depois.i > antes ? depois.nome : 'O teu qi fluiu');
+    const antes = cultivo(); r[s + 'F'] = Date.now(); const depois = cultivo(), ganho = depois.qi - antes.qi;
+    if (depois.r > antes.r) festa('Rompeste para ' + depois.reino, depois.frase);
+    else if (depois.idx > antes.idx) festa('Avanças: ' + textoNivel(depois), '+' + ganho + ' qi absorvido');
+    else festa('Ritual completo', '+' + ganho + ' qi' + (depois.serie > 1 ? ' · ' + depois.serie + ' seguidos' : ''));
     if (el){ const b = el.getBoundingClientRect(); qiExplosao(b.left + b.width / 2, b.top + b.height / 2); }
   } else if (!tudo) delete r[s + 'F'];
 }
@@ -567,17 +569,7 @@ function passoQi(t){
   if (Math.random() < .012) onda(Math.random() * qi.w, qi.h * (.84 + Math.random() * .14), .6);
 }
 
-/* ---------- Capa ---------- */
-let tCapa;
-function mostrarCapa(){
-  const c = $('#capa');
-  c.innerHTML = `<div class="cena"><svg viewBox="0 0 200 180" fill="none"><path class="gota" d="M100 112c6 9 9 14 9 18a9 9 0 0 1-18 0c0-4 3-9 9-18z" fill="#7fd1b4" fill-opacity=".6" stroke="#dffff3" stroke-width="1.4"/>
-    <ellipse class="an an1" cx="100" cy="150" rx="90" ry="18" stroke="#7fd1b4" stroke-width="1.5"/><ellipse class="an an2" cx="100" cy="150" rx="60" ry="12" stroke="#bff0dc" stroke-width="1.3"/><ellipse class="an an3" cx="100" cy="150" rx="34" ry="7" stroke="#e3c47e" stroke-width="1.2"/>
-    <path d="M0 150h200" stroke="#7fd1b4" stroke-opacity=".18"/></svg><h1>NASCENTE</h1><p>o caminho da pele de jade</p></div>`;
-  c.style.animation = 'none'; void c.offsetWidth; c.style.animation = '';
-  c.classList.remove('sair'); c.hidden = false; clearTimeout(tCapa); tCapa = setTimeout(() => { c.hidden = true; }, 3700);
-}
-function fecharCapa(){ const c = $('#capa'); c.classList.add('sair'); clearTimeout(tCapa); tCapa = setTimeout(() => { c.hidden = true; }, 500); }
+/* ---------- Capa: está em cultivo.js ---------- */
 
 /* ---------- Navegação ---------- */
 const RENDER = {vRitual: () => rRitual(), vFrascos: () => rFrascos(), vPele: () => rPele(), vMestre: () => rMestre(), vPerfil: () => rPerfil()};
@@ -603,7 +595,10 @@ const ACOES = {
   pRet(el){ cfg.retFixo = +el.dataset.v; guardarCfg(true); rPerfil(); },
   pHora(el){ cfg.horaNoite = +el.dataset.v; guardarCfg(true); rPerfil(); },
   pCapa(el){ cfg.capa = cfg.capa === false; guardarCfg(); el.classList.toggle('on'); },
-  verCapa: mostrarCapa,
+  verCapa(){ fecharFolha(); mostrarCapa(true); },
+  verCaminho: folhaCaminho,
+  pSom(el){ cfg.som = cfg.som === false; guardarCfg(); el.classList.toggle('on'); },
+  pCapaMin(el){ cfg.capaMin = +el.dataset.v; guardarCfg(); rPerfil(); armarInatividade(); },
   usarChaveAlheia(){ cfg.chave = chaveDeOutraApp(); guardarCfg(); rPerfil(); ACOES.testarIA(); },
   verChave(){ const i = $('#pChave'); i.type = i.type === 'password' ? 'text' : 'password'; },
   async testarIA(){
@@ -716,7 +711,7 @@ const CAMPOS = {
 
 /* ---------- Eventos ---------- */
 document.addEventListener('click', e => {
-  if (!$('#capa').hidden && e.target.closest('#capa')) return fecharCapa();
+  if (!$('#capa').hidden && e.target.closest('#capa')) return toqueCapa(e);
   const v = e.target.closest('[data-vista]'); if (v){ irPara(v.dataset.vista); return; }
   const a = e.target.closest('[data-acao]'); if (!a) return;
   const f = ACOES[a.dataset.acao]; if (f) f(a, e);
@@ -751,7 +746,8 @@ document.addEventListener('visibilitychange', () => {
   const q = new URLSearchParams(location.search);
   irPara(q.get('v') || 'vRitual');
   const a = agoraRitual(); ultimaSessao = diaChave(a.data) + a.s;
-  if (cfg.capa !== false && !sessionStorage.getItem('nascente.capa')){ try { sessionStorage.setItem('nascente.capa', '1'); } catch(e){} mostrarCapa(); }
+  if (!cfg.cultivoInicio){ cfg.cultivoInicio = diaChave(new Date()); guardarCfg(true); }  // as falhas só contam a partir de hoje
+  if (cfg.pronto && cfg.capa !== false) mostrarCapa(); else armarInatividade();
   if (q.get('acao') === 'fotografar') setTimeout(fotografar, 400);
   estadoSync(); if (ghLigado()) agendarSync(700);
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});

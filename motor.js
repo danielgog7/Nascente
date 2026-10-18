@@ -455,20 +455,3 @@ function paresIncompativeis(ctx, plano){
   }
   return r;
 }
-
-/* ---------- Reinos de cultivo (constância) ---------- */
-const REINOS = [
-  [0, 'Despertar do Qi', 'Sentes o primeiro fio de energia na pele.'],
-  [10, 'Refinamento do Corpo', 'A rotina começa a criar raízes.'],
-  [30, 'Fundação', 'A barreira da pele fortalece-se.'],
-  [70, 'Núcleo Dourado', 'A constância tornou-se natural.'],
-  [140, 'Alma Nascente', 'A pele renova-se como água de nascente.'],
-  [250, 'Transformação Divina', 'Poucos chegam tão longe.'],
-  [400, 'Imortal da Pele de Jade', 'Pele de jade, espírito sereno.']
-];
-function reino(pontos){
-  let i = 0; while (i + 1 < REINOS.length && pontos >= REINOS[i + 1][0]) i++;
-  const prox = REINOS[i + 1];
-  return {i, nome: REINOS[i][1], frase: REINOS[i][2], prox: prox ? prox[1] : null, falta: prox ? prox[0] - pontos : 0,
-    pct: prox ? (pontos - REINOS[i][0]) / (prox[0] - REINOS[i][0]) : 1};
-}

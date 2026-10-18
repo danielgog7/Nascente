@@ -150,7 +150,7 @@ let compras = LS.get('compras', []);
 let gh = LS.get('gh', {dono: '', repo: '', token: ''});
 let sync = LS.get('sync', {sha: '', sujo: 0, ultimo: 0, erro: ''});
 const fotos = {}; // id -> dataURL (cópia em memória do IndexedDB)
-const PARTILHADO = ['nome', 'pele', 'sensivel', 'preocupacoes', 'exf', 'retFixo', 'retInicio', 'horaNoite'];
+const PARTILHADO = ['nome', 'pele', 'sensivel', 'preocupacoes', 'exf', 'retFixo', 'retInicio', 'horaNoite', 'cultivoInicio'];
 function guardarCfg(partilhado){ if (partilhado){ cfg.ts = Date.now(); marcarSujo(); } LS.set('cfg', cfg); }
 function guardarProdutos(){ LS.set('produtos', produtos); LS.set('apagados', apagados); marcarSujo(); }
 function guardarRegistos(){ LS.set('registos', registos); marcarSujo(); }
@@ -362,12 +362,6 @@ function blocoPares(ctx){
     ${pares.map(x => `<div class="par"><b>${nomeP(x.a)}</b> <span class="suave">+</span> <b>${nomeP(x.b)}</b>${x.gravidade === 'evitar' ? ' <span class="tag perigo">evitar</span>' : ' <span class="tag aviso">cuidado</span>'}
       <div class="suave">${esc(x.porque)}</div><div class="mini" style="margin-top:3px;color:${x.juntos ? 'var(--perigo)' : 'var(--jade)'}">${x.juntos ? 'Atenção: coincidem num ritual.' : `Separados: ${esc(x.a.nome)} ${esc(x.qa)}; ${esc(x.b.nome)} ${esc(x.qb)}.`}</div></div>`).join('')}</details>`;
 }
-function blocoReino(){
-  const pts = pontos(), r = reino(pts), seq = sequencia();
-  return `<div class="placa"><div class="reino">${glifoReino(r.i)}<div><span class="suave mini">Reino de cultivo</span><b>${r.nome}</b><span class="suave peq">${r.frase}</span></div></div>
-    <div class="barra" style="margin:12px 0 6px"><i style="width:${Math.round(r.pct * 100)}%"></i></div>
-    <div class="linha entre mini suave"><span>${r.prox ? `Faltam ${r.falta} rituais para ${r.prox}` : 'Chegaste ao topo da montanha.'}</span><span>${seq ? seq + (seq === 1 ? ' dia seguido' : ' dias seguidos') : pts + ' rituais'}</span></div></div>`;
-}
 function blocoBoasVindas(){
   return `<div class="placa col"><h2>Bem-vindo à Nascente</h2>
     <p class="suave peq" style="margin:0">Conta-me como é a tua pele. Depois fotografa os teus frascos: eu digo-te quais usar, quando, por que ordem e o que não deves misturar.</p>
@@ -383,11 +377,11 @@ function rRitual(){
   if (!cfg.pronto) html += blocoBoasVindas();
   else if (!produtos.length) html += `<div class="placa vazio">${LOTUS}<h2 style="padding:0">O teu ritual começa aqui</h2><p class="suave">Fotografa os cremes, séruns e esfoliantes que tens. O Mestre lê cada rótulo e monta o teu ritual de manhã e de noite.</p>
       <button class="btn jade" data-acao="fotografar">${IC.camara} Fotografar o primeiro frasco</button><button class="btn fantasma peq-btn" data-acao="novoManual">Ou adicionar à mão</button></div>`;
-  else html += blocoRitual(ctx) + blocoAvisos(ctx) + blocoSemana(ctx) + blocoHistorico() + blocoPares(ctx) + blocoReino();
+  else html += blocoRitual(ctx) + blocoCultivo() + blocoAvisos(ctx) + blocoSemana(ctx) + blocoHistorico() + blocoPares(ctx);
   $('#vRitual').innerHTML = html;
   atualizarTopo();
 }
-function atualizarTopo(){ const r = reino(pontos()); $('#reinoTopo').textContent = produtos.length ? r.nome : ''; }
+function atualizarTopo(){ const c = cultivo(); $('#reinoTopo').textContent = c.total ? c.reinoCurto + ' · ' + (c.nNiveis > 1 ? (typeof REINOS_C[c.r].niveis === 'number' ? c.nNivel : c.nivel) : c.nivel) : ''; }
 function folhaDia(dow){
   const ctx = contexto(), dt = dataDaSemana(dow), m = passosDoDia(dt, 'm', ctx), n = passosDoDia(dt, 'n', ctx), feito = registos[diaChave(dt)] || {};
   const lista = (se, s) => { const it = comFaltas(se, s, ctx); return it.length ? `<div class="lista">${it.map(({p, falta}, i) => falta
@@ -674,8 +668,10 @@ function rPerfil(){
       <label class="campo">Token<input type="password" id="gToken" value="${esc(gh.token)}" autocomplete="off"></label>
       <div class="botoes"><button class="btn jade" data-acao="ligarGH">Ligar e sincronizar</button>${gh.token ? '<button class="btn perigo" data-acao="desligarGH">Desligar</button>' : ''}</div>
       <p class="suave peq" id="syncTxt" style="margin:0"></p></div></details>
-    <div class="placa col"><h2>Capa</h2><p class="suave peq" style="margin:0">Uma gota cai na nascente ao abrir a app.</p>
-      <div class="chips">${chip(cfg.capa !== false, 'pCapa', '', 'Capa ao abrir')}</div><button class="btn" data-acao="verCapa">Ver a capa agora</button></div>
+    <div class="placa col"><h2>Capa do cultivador</h2><p class="suave peq" style="margin:0">Ao abrir a app, o teu cultivador absorve qi. Toca três vezes para entrar. A capa volta quando deixas a app parada.</p>
+      <div class="chips">${chip(cfg.capa !== false, 'pCapa', '', 'Capa ao abrir')}${chip(cfg.som !== false, 'pSom', '', 'Som')}</div>
+      <div><h3>Voltar à capa ao fim de</h3><div class="chips">${[1, 3, 5, 0].map(n => chip((cfg.capaMin === undefined ? 3 : +cfg.capaMin) === n, 'pCapaMin', n, n ? n + ' min sem tocar' : 'Nunca')).join('')}</div></div>
+      <button class="btn" data-acao="verCapa">Ver a capa agora</button></div>
     <div class="placa col"><h2>Cópia de segurança</h2><p class="suave peq" style="margin:0">Exporta tudo (com fotos) para um ficheiro. Útil antes de mudares de telemóvel.</p>
       <div class="botoes"><button class="btn" data-acao="exportar">Exportar</button><button class="btn" data-acao="importar">Importar</button></div></div>
     <p class="apagado mini centro">Os conselhos do Mestre são orientação geral e não substituem um dermatologista. Se tiveres uma reação forte (ardor intenso, inchaço, bolhas), pára o produto e procura um profissional.</p>`;

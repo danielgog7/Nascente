@@ -11,12 +11,11 @@ function lerJSON(txt){
   if (a < 0 || b < a) throw new Error('Resposta da IA em formato inválido.');
   return JSON.parse(s.slice(a, b + 1));
 }
-async function listarModelos(){
-  const nomes = await IA.listarModelos(cfg.chave);
+async function listarModelos(chave = cfg.chave){
+  const nomes = await IA.listarModelos(chave);
   if (nomes.length && !nomes.includes(cfg.modelo)) cfg.modelo = nomes[0];
   guardarCfg(); return nomes;
 }
-// A chave do Gemini de outra app deste aparelho é encontrada pelo ia-comum.js (IA.chaveGemini).
 
 /* ---------- Textos de contexto para o Mestre ---------- */
 const PT = 'Escreve em português de Portugal (PT-PT, nunca do Brasil): trata o utilizador por "tu" e usa termos de Portugal (creme, protetor solar, borbulhas, farmácia, parafarmácia).';
@@ -586,9 +585,11 @@ const ACOES = {
   verChave(){ const i = $('#pChave'); i.type = i.type === 'password' ? 'text' : 'password'; },
   async testarIA(){
     const i = $('#pChave'), st = $('#iaTeste'); if (i) cfg.chave = i.value.trim(); guardarCfg();
-    if (!cfg.chave){ if (st) st.textContent = 'Sem chave.'; return; }
+    // Campo vazio: testa a chave que o Mestre vai mesmo usar (a de outra app deste aparelho). Não a copia para a Nascente.
+    const chave = IA.chaveGemini(cfg.chave), origem = cfg.chave ? '' : IA.origemChave(cfg.chave);
+    if (!chave){ if (st) st.textContent = IA.temGroq() ? 'Sem chave do Gemini: o Mestre usa o Groq de reserva.' : 'Sem chave.'; return; }
     if (st) st.textContent = 'A testar…';
-    try { const n = await listarModelos(); if (st) st.textContent = n.length ? 'Ligado. Modelo: ' + cfg.modelo : 'Chave válida, mas sem modelos Flash disponíveis.'; toast('O Mestre está pronto.'); }
+    try { const n = await listarModelos(chave); if (st) st.textContent = n.length ? 'Ligado' + (origem ? ' com a chave ' + deApp(origem) : '') + '. Modelo: ' + cfg.modelo : 'Chave válida, mas sem modelos Flash disponíveis.'; toast('O Mestre está pronto.'); }
     catch(e){ if (st) st.textContent = e.message; }
   },
   async ligarGH(){

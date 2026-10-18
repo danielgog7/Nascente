@@ -187,8 +187,10 @@ function mdLeve(txt){
   if (lista) out.push('</ul>');
   return out.join('');
 }
-// Há IA: a chave própria, a de outra app deste aparelho (ia-comum.js) ou a do Groq.
+// IA ligada: chave do Gemini (a própria ou a de outra app deste aparelho) ou chave do Groq. O ia-comum.js trata de procurar.
 const temIA = () => IA.temIA(cfg.chave);
+// De onde vem a chave quando a Nascente não tem a sua: 'Forja' → 'da Forja', 'Mirante' → 'do Mirante'.
+function deApp(nome){ const n = String(nome || ''); if (/outra app/i.test(n)) return 'de ' + n; const m = n.replace(/^./, c => c.toUpperCase()); return (/^mirante$/i.test(m) ? 'do ' : 'da ') + m; }
 const procurarURL = q => 'https://www.google.com/search?q=' + encodeURIComponent(q + ' comprar preço Portugal');
 
 /* ---------- Contexto da rotina ---------- */
@@ -645,7 +647,7 @@ function rMestre(){
 
 /* ---------- Vista: Perfil ---------- */
 function rPerfil(){
-  const origem = IA.origemChave(cfg.chave);
+  const origem = cfg.chave ? '' : IA.origemChave(cfg.chave);
   $('#vPerfil').innerHTML = `<h1 class="titulo-vista">Perfil</h1>
     <div class="placa col"><h2>A tua pele</h2>
       <label class="campo">Nome<input type="text" data-campo="pNome" value="${esc(cfg.nome)}" autocomplete="given-name"></label>
@@ -659,8 +661,8 @@ function rPerfil(){
       <div><h3>A partir de que hora mostro o ritual da noite</h3><div class="chips">${[12, 15, 18, 20].map(n => chip(+cfg.horaNoite === n, 'pHora', n, n + 'h')).join('')}</div></div></div>
     <div class="placa col"><h2>Inteligência artificial</h2>
       <p class="suave peq" style="margin:0">O Mestre usa o Gemini da Google, com uma chave gratuita tua, guardada só neste dispositivo. Para criar: abre <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com/app/apikey</a>, entra com a conta Google, toca em "Create API key" e cola a chave aqui.</p>
-      ${!cfg.chave && origem ? `<div class="alerta info">${IC.info}<div class="cresce">Sem chave própria: o Mestre usa a chave do Gemini ${origem === 'outra app tua' ? 'de outra app tua' : 'da ' + esc(origem)}, neste aparelho. Se quiseres, cola aqui uma chave só para a Nascente.</div></div>`
-        : !cfg.chave && IA.temGroq() ? `<div class="alerta info">${IC.info}<div class="cresce">Sem chave do Gemini: o Mestre usa o Groq de reserva.</div></div>` : ''}
+      ${origem ? `<div class="alerta info">${IC.info}<div class="cresce">Sem chave própria: estou a usar a chave ${esc(deApp(origem))}, que já está neste aparelho.</div></div>`
+        : !cfg.chave && IA.temGroq() ? `<div class="alerta info">${IC.info}<div class="cresce">Sem chave do Gemini neste aparelho: o Mestre usa o Groq de reserva.</div></div>` : ''}
       <label class="campo">Chave do Gemini<div class="linha"><input type="password" id="pChave" value="${esc(cfg.chave)}" placeholder="Cola aqui a chave" autocomplete="off"><button class="btn icone" data-acao="verChave" aria-label="Ver">${IC.lupa}</button></div></label>
       <div class="linha"><button class="btn jade" data-acao="testarIA">Guardar e testar</button><span class="suave mini cresce" id="iaTeste">${temIA() ? 'Modelo: ' + esc(cfg.modelo) : ''}</span></div></div>
     <div class="placa col"><h2>IA de reserva (Groq)</h2>${IA.htmlGroq({sub: 'suave peq', pri: 'btn jade'})}</div>

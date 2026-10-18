@@ -349,3 +349,105 @@ a.btn { text-decoration: none; }
 #sessao.fim .d-shen .c-dan-h { transform: scale(3) !important; transition: transform .9s ease; }
 .centro-chips { justify-content: center; margin-bottom: 12px; }
 @media (min-width: 420px) { #nav button { font-size: 11.5px; } }
+
+/* ---------- Capa: o Mestre medita sobre a nascente ---------- */
+#capa { position: fixed; inset: 0; z-index: 80; overflow: hidden; cursor: pointer; outline: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; background: #040b0a; animation: aparecer .6s ease; }
+#capa.logo { animation: none; }
+.capa-ceu { position: absolute; inset: 0; background: radial-gradient(70% 42% at 50% 30%, #17403a 0%, #0b221d 52%, #040b0a 100%); }
+#capa.h-manha .capa-ceu { background: radial-gradient(60% 34% at 50% 31%, rgba(246, 214, 160, .32), transparent 70%), linear-gradient(#0d221d, #1d3d34 48%, #334c40 62%, #0b1b17 75%); }
+#capa.h-tarde .capa-ceu { background: radial-gradient(60% 34% at 50% 31%, rgba(236, 240, 220, .18), transparent 70%), linear-gradient(#0f2722, #1a3a33 55%, #0a1915 78%); }
+.capa-estrelas { position: absolute; inset: 0 0 50% 0; opacity: 0; animation: cintila 5s ease-in-out infinite alternate;
+  background: radial-gradient(1.2px 1.2px at 12% 18%, #fff, transparent), radial-gradient(1px 1px at 26% 8%, #fff, transparent), radial-gradient(1.4px 1.4px at 40% 22%, #e9fff7, transparent), radial-gradient(1px 1px at 63% 12%, #fff, transparent), radial-gradient(1.3px 1.3px at 78% 26%, #fff, transparent), radial-gradient(1px 1px at 88% 9%, #e9fff7, transparent), radial-gradient(1px 1px at 8% 38%, #fff, transparent), radial-gradient(1.2px 1.2px at 93% 40%, #fff, transparent), radial-gradient(1px 1px at 55% 4%, #fff, transparent), radial-gradient(1px 1px at 33% 36%, #fff, transparent); }
+#capa.h-noite .capa-estrelas { opacity: .7; }
+@keyframes cintila { to { filter: brightness(.55); } }
+.capa-montes { position: absolute; left: 0; right: 0; bottom: 26%; width: 100%; height: 40%; }
+.capa-nevoa { position: absolute; left: -40%; width: 180%; height: 18%; pointer-events: none; filter: blur(18px); opacity: .55; background: radial-gradient(40% 50% at 30% 50%, rgba(200, 236, 226, .18), transparent 70%), radial-gradient(35% 45% at 75% 55%, rgba(200, 236, 226, .13), transparent 70%); }
+.capa-nevoa.n1 { bottom: 24%; animation: deriva 40s ease-in-out infinite alternate; }
+.capa-nevoa.n2 { bottom: 40%; opacity: .3; animation: deriva 58s ease-in-out infinite alternate-reverse; }
+.capa-lago { position: absolute; left: 0; right: 0; bottom: 0; height: 27%; background: linear-gradient(#123630, #07150f 55%, #030807); border-top: 1px solid rgba(159, 211, 196, .2); overflow: hidden; }
+.capa-reflexo { position: absolute; left: 50%; top: 0; width: min(50vw, 230px); height: 75%; transform: translateX(-50%); filter: blur(7px); background: radial-gradient(50% 100% at 50% 0%, rgba(225, 248, 238, .3), rgba(127, 209, 180, .08) 55%, transparent 75%); animation: tremeReflexo 4s ease-in-out infinite; }
+#capa.h-manha .capa-reflexo { background: radial-gradient(50% 100% at 50% 0%, rgba(250, 226, 180, .32), rgba(127, 209, 180, .08) 55%, transparent 75%); }
+@keyframes tremeReflexo { 50% { transform: translateX(-50%) scaleX(1.12) scaleY(.94); opacity: .8; } }
+.capa-ondas { position: absolute; left: 50%; top: 16px; width: 0; height: 0; }
+.capa-ondas i { position: absolute; left: 0; top: 0; width: 280px; height: 34px; margin: -17px 0 0 -140px; border-radius: 50%; border: 1px solid rgba(190, 240, 222, .32); opacity: 0; animation: ondaPedra 5s ease-out infinite; }
+.capa-ondas i:nth-child(2) { animation-delay: 1.66s; } .capa-ondas i:nth-child(3) { animation-delay: 3.33s; }
+@keyframes ondaPedra { 0% { transform: scale(.25); opacity: .7; } 100% { transform: scale(1.6); opacity: 0; } }
+.capa-figura { position: absolute; z-index: 2; left: 50%; bottom: 24.5%; width: min(84vw, 48vh, 380px); transform: translateX(-50%); }
+.capa-astro { position: absolute; z-index: 0; left: 50%; top: 25.5%; width: 74%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; transition: transform 1s ease, filter 1s ease;
+  background: radial-gradient(circle, #f6efd8 0 27%, rgba(233, 223, 191, .55) 29%, rgba(159, 211, 196, .12) 48%, transparent 70%); animation: astro 8s ease-in-out infinite; }
+#capa.h-manha .capa-astro { background: radial-gradient(circle, #fff1cf 0 25%, rgba(251, 222, 166, .6) 28%, rgba(246, 200, 140, .14) 50%, transparent 70%); }
+#capa.h-tarde .capa-astro { background: radial-gradient(circle, #fbf7e8 0 24%, rgba(240, 236, 214, .45) 27%, rgba(200, 230, 214, .1) 48%, transparent 70%); }
+@keyframes astro { 50% { filter: brightness(1.08); } }
+.capa-aura { position: absolute; z-index: 1; left: 50%; top: 58%; width: 100%; height: 80%; transform: translate(-50%, -50%); border-radius: 50%; opacity: .55; transition: opacity 1s ease, transform 1s ease;
+  background: radial-gradient(closest-side, rgba(127, 209, 180, .32), rgba(127, 209, 180, .08) 60%, transparent); animation: auraM 5.5s ease-in-out infinite; }
+@keyframes auraM { 50% { opacity: .8; } }
+#capaQi { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none; }
+.capa-topo { position: absolute; z-index: 4; top: calc(22px + env(safe-area-inset-top)); left: 0; right: 0; text-align: center; padding: 0 22px; }
+.capa-marca { font: 600 15px var(--serifa); letter-spacing: .55em; padding-left: .55em; background: linear-gradient(100deg, #e8fff6, var(--jade) 45%, var(--ouro)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.capa-fala { margin-top: 10px; min-height: 64px; }
+.capa-sub { margin: 0; font: italic 500 19px var(--serifa); color: var(--ouro); opacity: .9; }
+.capa-fala.fala p { animation: falaEntra 1s ease both; }
+.capa-saud { margin: 0; font: 600 clamp(28px, 7.5vw, 36px)/1.1 var(--serifa); color: #f4fbf8; text-shadow: 0 0 22px rgba(127, 209, 180, .8), 0 0 2px rgba(255, 255, 255, .5); }
+.capa-dito { margin: 8px auto 0; max-width: 30ch; font: italic 500 19px/1.35 var(--serifa); color: var(--nevoa); animation-delay: .35s !important; }
+@keyframes falaEntra { from { opacity: 0; filter: blur(6px); transform: translateY(6px); } }
+.capa-base { position: absolute; z-index: 4; left: 0; right: 0; bottom: calc(24px + env(safe-area-inset-bottom)); padding: 0 24px; text-align: center; max-width: 520px; margin: 0 auto; }
+.capa-estado { margin: 0; display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 8px; font-size: 13px; color: var(--suave); }
+.capa-estado .feito { color: var(--jade); } .capa-estado i { font-style: normal; opacity: .5; }
+.capa-dica { margin: 14px 0 8px; font: italic 500 18px var(--serifa); color: var(--nevoa); animation: pulsoTexto 2.6s ease-in-out infinite; }
+@keyframes pulsoTexto { 50% { opacity: .5; } }
+.capa-pontos { display: flex; justify-content: center; gap: 10px; }
+.capa-pontos i { width: 10px; height: 10px; border-radius: 50%; border: 1px solid rgba(227, 196, 126, .6); transition: background .2s, box-shadow .2s; }
+.capa-pontos i.on { background: var(--ouro); box-shadow: 0 0 10px var(--ouro); }
+.capa-onda { position: absolute; z-index: 3; width: 40px; height: 9px; margin: -4.5px 0 0 -20px; border-radius: 50%; border: 1.5px solid rgba(220, 250, 240, .8); pointer-events: none; animation: capaOnda 1.25s ease-out forwards; }
+@keyframes capaOnda { to { transform: scale(13); opacity: 0; border-width: .4px; } }
+
+/* O Mestre */
+.mestre { width: 100%; height: auto; display: block; overflow: visible; position: relative; z-index: 2; }
+.mestre .m-flutua { animation: mFlutua 6s ease-in-out infinite; }
+@keyframes mFlutua { 50% { transform: translateY(-9px); } }
+.mestre .m-disco, .mestre .m-disco-anel { transform-origin: 150px 330px; animation: mDisco 6s ease-in-out infinite; }
+@keyframes mDisco { 50% { transform: scale(.9); opacity: .65; } }
+.mestre .m-tronco { transform-origin: 150px 262px; animation: mRespira 5.5s ease-in-out infinite; }
+@keyframes mRespira { 50% { transform: scale(1.012, 1.02); } }
+.mestre .m-barba { transform-origin: 150px 118px; animation: mBarba 7s ease-in-out infinite; }
+@keyframes mBarba { 0%, 100% { transform: rotate(1.6deg); } 50% { transform: rotate(-1.6deg); } }
+.mestre .m-sobr-e { transform-origin: 146px 85px; animation: mSobrE 6s ease-in-out infinite; }
+.mestre .m-sobr-d { transform-origin: 154px 85px; animation: mSobrD 6s ease-in-out infinite; }
+@keyframes mSobrE { 50% { transform: rotate(2.5deg); } }
+@keyframes mSobrD { 50% { transform: rotate(-2.5deg); } }
+.mestre .m-olhos-f { transition: opacity .15s; }
+.mestre .m-olhos-a { opacity: 0; transition: opacity .25s; }
+.mestre .m-mao-d { transition: opacity .3s; }
+.mestre .m-gesto { opacity: 0; transform: translateY(16px); transition: opacity .3s ease .12s, transform .55s cubic-bezier(.2, .9, .3, 1.25) .12s; }
+.mestre .m-espiral { transition: opacity .3s; }
+.mestre .m-agua { fill: none; stroke: url(#mgAgua); stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; opacity: 0; }
+.mestre .m-agua.grossa { stroke-width: 5; } .mestre .m-agua.fina { stroke-width: 2; }
+/* 1.º toque: uma sobrancelha ergue-se; 2.º: inspira fundo e a barba ondula no vento do qi */
+#capa.t1 .m-sobr-d { animation: mErgue 1.3s ease; }
+@keyframes mErgue { 30% { transform: rotate(-13deg) translateY(-2px); } 60% { transform: rotate(-9deg); } }
+#capa.t2 .m-tronco { animation: mInspira 1.8s ease forwards; }
+@keyframes mInspira { 55% { transform: scale(1.03, 1.05); } 100% { transform: scale(1.018, 1.03); } }
+#capa.t2 .m-barba { animation-duration: 2.2s; }
+#capa.t2 .capa-aura { opacity: 1; transform: translate(-50%, -50%) scale(1.15); animation: none; }
+#capa.t2 .capa-astro { filter: brightness(1.15); }
+/* 3.º toque: desperta */
+#capa.desperto .m-olhos-f { opacity: 0; }
+#capa.desperto .m-olhos-a { opacity: 1; }
+#capa.desperto .m-mao-d { opacity: 0; }
+#capa.desperto .m-gesto { opacity: 1; transform: none; }
+#capa.desperto .m-ponta { animation: mPonta .9s ease-in-out infinite; transform-origin: 187px 137px; }
+@keyframes mPonta { 50% { transform: scale(1.7); opacity: .7; } }
+#capa.desperto .m-agua { animation: mAgua 1s .2s cubic-bezier(.45, 0, .2, 1) forwards; }
+@keyframes mAgua { 0% { stroke-dashoffset: 1; opacity: .95; } 100% { stroke-dashoffset: 0; opacity: .95; } }
+#capa.desperto .capa-astro { transform: translate(-50%, -50%) scale(1.1); filter: brightness(1.3); }
+#capa.desperto .capa-dica { animation: none; color: var(--ouro); }
+#capa.rebenta .m-espiral { opacity: 0; transition: opacity .9s ease .05s; }
+#capa.rebenta::after { content: ''; position: absolute; inset: 0; z-index: 5; pointer-events: none; background: radial-gradient(circle at 50% 30%, rgba(235, 255, 248, .55), transparent 60%); animation: clarao .9s ease forwards; }
+@keyframes clarao { 0% { opacity: 0; } 30% { opacity: 1; } 100% { opacity: 0; } }
+/* Sair: a capa abre-se como uma onda a partir do Mestre */
+@property --furo { syntax: '<length>'; inherits: false; initial-value: 0px; }
+#capa.sair { pointer-events: none; animation: capaFuro .9s cubic-bezier(.5, 0, .3, 1) forwards;
+  -webkit-mask: radial-gradient(circle at var(--fx, 50%) var(--fy, 50%), transparent var(--furo), #000 calc(var(--furo) + 80px));
+  mask: radial-gradient(circle at var(--fx, 50%) var(--fy, 50%), transparent var(--furo), #000 calc(var(--furo) + 80px)); }
+@keyframes capaFuro { 0% { --furo: 0px; } 80% { opacity: 1; } 100% { --furo: 150vmax; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { #capa .mestre *, .capa-nevoa, .capa-ondas i, .capa-reflexo { animation: none !important; } }

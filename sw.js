@@ -1,6 +1,6 @@
 // Nascente — service worker: a app funciona sem internet e atualiza-se sozinha quando há ligação.
-const CACHE = 'nascente-v10';
-const FICHEIROS = ['./', './index.html', './estilo.css', './ia-comum.js', './cultivador-arte.js', './cultivador-arte.css', './motor.js', './meditar.js', './app.js', './acoes.js', './cormorant.woff2', './cormorant-it.woff2', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
+const CACHE = 'nascente-v11';
+const FICHEIROS = ['./', './index.html', './estilo.css', './ia-comum.js', './cultivador-arte.js', './cultivador-arte.css', './motor.js', './meditar.js', './capa.js', './app.js', './acoes.js', './cormorant.woff2', './cormorant-it.woff2', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FICHEIROS)));

@@ -671,6 +671,7 @@ function rPerfil(){
       <p class="suave peq" id="syncTxt" style="margin:0"></p></div></details>
     <div class="placa col"><h2>Meditação</h2><p class="suave peq" style="margin:0">O teu cultivador é o do Mirante. Cada dia com uma sessão de respiração completa dá 3 de Shen; o progresso vê-se no Mirante.</p>
       <div class="chips">${chip(cfg.medSom !== false, 'medOp', 'medSom', 'Sons da respiração')}${chip(cfg.medVoz !== false, 'medOp', 'medVoz', 'Voz nos guiados')}${chip(cfg.medVibra !== false, 'medOp', 'medVibra', 'Vibração')}</div></div>
+    ${blocoCapaPerfil()}
     <div class="placa col"><h2>Cópia de segurança</h2><p class="suave peq" style="margin:0">Exporta tudo (com fotos) para um ficheiro. Útil antes de mudares de telemóvel.</p>
       <div class="botoes"><button class="btn" data-acao="exportar">Exportar</button><button class="btn" data-acao="importar">Importar</button></div></div>
     <p class="apagado mini centro">Os conselhos do Mestre são orientação geral e não substituem um dermatologista. Se tiveres uma reação forte (ardor intenso, inchaço, bolhas), pára o produto e procura um profissional.</p>`;

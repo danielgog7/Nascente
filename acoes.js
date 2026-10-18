@@ -693,7 +693,7 @@ const ACOES = {
   enviarPergunta(){ const t = $('#pergunta'); if (!t || !t.value.trim()) return; const q = t.value; t.value = ''; perguntarMestre(q); },
   limparConversa(){ if (!confirm('Apagar a conversa com o Mestre?')) return; conversa = []; LS.set('conversa', conversa); rMestre(); }
 };
-Object.assign(ACOES, ACOES_MED);
+Object.assign(ACOES, ACOES_MED, ACOES_CAPA);
 const CAMPOS = {
   rNome: el => { rascunho.nome = el.value; }, rMarca: el => { rascunho.marca = el.value; }, rQtd: el => { rascunho.qtd = el.value; }, rModo: el => { rascunho.modo = el.value; },
   rEspera: el => { rascunho.espera = el.value; }, rConc: el => { rascunho.conc = el.value; }, rAviso: el => { rascunho.aviso = el.value; }, rAberto: el => { rascunho.aberto = el.value; },
@@ -706,12 +706,14 @@ const CAMPOS = {
 
 /* ---------- Eventos ---------- */
 document.addEventListener('click', e => {
+  if (capaAberta && e.target.closest('#capa')) return toqueCapa();
   const v = e.target.closest('[data-vista]'); if (v){ irPara(v.dataset.vista); return; }
   const a = e.target.closest('[data-acao]'); if (!a) return;
   const f = ACOES[a.dataset.acao]; if (f) f(a, e);
 });
 document.addEventListener('input', e => { const c = e.target.closest('[data-campo]'); if (c && CAMPOS[c.dataset.campo]) CAMPOS[c.dataset.campo](c, e); });
 document.addEventListener('keydown', e => {
+  if (capaAberta && (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape')){ e.preventDefault(); return e.key === 'Escape' ? fecharCapa() : toqueCapa(); }
   if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'pergunta'){ e.preventDefault(); ACOES.enviarPergunta(); }
   if (e.key === 'Escape' && !$('#folha').hidden) fecharFolha();
   else if (e.key === 'Escape' && !$('#sessao').hidden) ACOES.sesSair();
@@ -737,6 +739,8 @@ document.addEventListener('visibilitychange', () => {
 /* ---------- Arranque ---------- */
 (async function iniciar(){
   if (cfg.groqChave && !IA.temGroq()) IA.definirGroq(cfg.groqChave, cfg.groqModelo);
+  const q0 = new URLSearchParams(location.search);
+  if (cfg.pronto && cfg.capa !== false && !q0.get('acao') && !q0.get('v')) mostrarCapa(false, true); else armarInatividade();
   await carregarFotos();
   qiIniciar();
   const q = new URLSearchParams(location.search);

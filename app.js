@@ -147,10 +147,11 @@ let conversa = LS.get('conversa', []);
 let revisao = LS.get('revisao', null);
 let avaliacao = LS.get('avaliacao', null);
 let compras = LS.get('compras', []);
+let respiracao = LS.get('respiracao', []);
 let gh = LS.get('gh', {dono: '', repo: '', token: ''});
 let sync = LS.get('sync', {sha: '', sujo: 0, ultimo: 0, erro: ''});
 const fotos = {}; // id -> dataURL (cópia em memória do IndexedDB)
-const PARTILHADO = ['nome', 'pele', 'sensivel', 'preocupacoes', 'exf', 'retFixo', 'retInicio', 'horaNoite', 'cultivoInicio'];
+const PARTILHADO = ['nome', 'pele', 'sensivel', 'preocupacoes', 'exf', 'retFixo', 'retInicio', 'horaNoite'];
 function guardarCfg(partilhado){ if (partilhado){ cfg.ts = Date.now(); marcarSujo(); } LS.set('cfg', cfg); }
 function guardarProdutos(){ LS.set('produtos', produtos); LS.set('apagados', apagados); marcarSujo(); }
 function guardarRegistos(){ LS.set('registos', registos); marcarSujo(); }
@@ -377,11 +378,11 @@ function rRitual(){
   if (!cfg.pronto) html += blocoBoasVindas();
   else if (!produtos.length) html += `<div class="placa vazio">${LOTUS}<h2 style="padding:0">O teu ritual começa aqui</h2><p class="suave">Fotografa os cremes, séruns e esfoliantes que tens. O Mestre lê cada rótulo e monta o teu ritual de manhã e de noite.</p>
       <button class="btn jade" data-acao="fotografar">${IC.camara} Fotografar o primeiro frasco</button><button class="btn fantasma peq-btn" data-acao="novoManual">Ou adicionar à mão</button></div>`;
-  else html += blocoRitual(ctx) + blocoCultivo() + blocoAvisos(ctx) + blocoSemana(ctx) + blocoHistorico() + blocoPares(ctx);
+  else html += blocoRitual(ctx) + ((ritualSel || agoraRitual().s) === 'n' ? blocoAntesDormir() : '') + blocoAvisos(ctx) + blocoSemana(ctx) + blocoHistorico() + blocoPares(ctx);
   $('#vRitual').innerHTML = html;
   atualizarTopo();
 }
-function atualizarTopo(){ const c = cultivo(); $('#reinoTopo').textContent = c.total ? c.reinoCurto + ' · ' + (c.nNiveis > 1 ? (typeof REINOS_C[c.r].niveis === 'number' ? c.nNivel : c.nivel) : c.nivel) : ''; }
+function atualizarTopo(){ const R = retratoMirante(), sh = shenHoje(); $('#reinoTopo').textContent = cfg.pronto ? 'Shen ' + sh.total + '/10' + (R ? ' · ' + R.reino : '') : ''; }
 function folhaDia(dow){
   const ctx = contexto(), dt = dataDaSemana(dow), m = passosDoDia(dt, 'm', ctx), n = passosDoDia(dt, 'n', ctx), feito = registos[diaChave(dt)] || {};
   const lista = (se, s) => { const it = comFaltas(se, s, ctx); return it.length ? `<div class="lista">${it.map(({p, falta}, i) => falta
@@ -668,10 +669,8 @@ function rPerfil(){
       <label class="campo">Token<input type="password" id="gToken" value="${esc(gh.token)}" autocomplete="off"></label>
       <div class="botoes"><button class="btn jade" data-acao="ligarGH">Ligar e sincronizar</button>${gh.token ? '<button class="btn perigo" data-acao="desligarGH">Desligar</button>' : ''}</div>
       <p class="suave peq" id="syncTxt" style="margin:0"></p></div></details>
-    <div class="placa col"><h2>Capa do cultivador</h2><p class="suave peq" style="margin:0">Ao abrir a app, o teu cultivador absorve qi. Toca três vezes para entrar. A capa volta quando deixas a app parada.</p>
-      <div class="chips">${chip(cfg.capa !== false, 'pCapa', '', 'Capa ao abrir')}${chip(cfg.som !== false, 'pSom', '', 'Som')}</div>
-      <div><h3>Voltar à capa ao fim de</h3><div class="chips">${[1, 3, 5, 0].map(n => chip((cfg.capaMin === undefined ? 3 : +cfg.capaMin) === n, 'pCapaMin', n, n ? n + ' min sem tocar' : 'Nunca')).join('')}</div></div>
-      <button class="btn" data-acao="verCapa">Ver a capa agora</button></div>
+    <div class="placa col"><h2>Meditação</h2><p class="suave peq" style="margin:0">O teu cultivador é o do Mirante. Cada dia com uma sessão de respiração completa dá 3 de Shen; o progresso vê-se no Mirante.</p>
+      <div class="chips">${chip(cfg.medSom !== false, 'medOp', 'medSom', 'Sons da respiração')}${chip(cfg.medVoz !== false, 'medOp', 'medVoz', 'Voz nos guiados')}${chip(cfg.medVibra !== false, 'medOp', 'medVibra', 'Vibração')}</div></div>
     <div class="placa col"><h2>Cópia de segurança</h2><p class="suave peq" style="margin:0">Exporta tudo (com fotos) para um ficheiro. Útil antes de mudares de telemóvel.</p>
       <div class="botoes"><button class="btn" data-acao="exportar">Exportar</button><button class="btn" data-acao="importar">Importar</button></div></div>
     <p class="apagado mini centro">Os conselhos do Mestre são orientação geral e não substituem um dermatologista. Se tiveres uma reação forte (ardor intenso, inchaço, bolhas), pára o produto e procura um profissional.</p>`;

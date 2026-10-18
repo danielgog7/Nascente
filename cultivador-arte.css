@@ -1,0 +1,46 @@
+/* Cultivador: estilos comuns às apps (Mirante e Nascente). Ficheiro IGUAL nos dois repositórios (ver cultivador-arte.js). */
+.capa-paisagem { position: absolute; inset: 0; width: 100%; height: 100%; }
+.capa-assento { position: absolute; z-index: 1; left: -8%; width: 116%; top: 83%; height: auto; overflow: visible; }
+.capa-figura.p3 .capa-assento { top: 81%; }
+.jade-brilho { animation: cmPulso 4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.nuvem-base { animation: cmFlutua 7s ease-in-out infinite; }
+.nuvens { animation: cmDeriva 26s ease-in-out infinite alternate; }
+.nuvens.n2 { animation-duration: 34s; animation-direction: alternate-reverse; } .nuvens.n3 { animation-duration: 20s; }
+@keyframes cmDeriva { from { transform: translateX(-24px); } to { transform: translateX(24px); } }
+.lua-grande { animation: cmPulso 9s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes cmPulso { 50% { opacity: .82; } }
+@keyframes cmGira { to { transform: rotate(360deg); } }
+.cultivador .c-olhos-a { display: none; }
+.cultivador.r6 .c-olhos-a, #capa.t1 .c-olhos-a { display: inline; }
+.cultivador.r6 .c-olhos-f, #capa.t1 .c-olhos-f { display: none; }
+.cultivador .c-respira { transform-origin: 150px 300px; animation: cmRespira 5.5s ease-in-out infinite; }
+@keyframes cmRespira { 50% { transform: scale(1.012, 1.018); } }
+.cultivador .c-flutua, .cultivador .c-alma { animation: cmFlutua 6s ease-in-out infinite; }
+@keyframes cmFlutua { 50% { transform: translateY(-8px); } }
+.cultivador .c-aura { transform-origin: 150px 230px; animation: cmAura 4s ease-in-out infinite; }
+.cultivador.f2 .c-aura { animation-duration: 3s; } .cultivador.f3 .c-aura { animation-duration: 2.4s; } .cultivador.f4 .c-aura { animation-duration: 1.8s; }
+@keyframes cmAura { 50% { transform: scale(1.06); opacity: .9; } }
+.cultivador .c-dan circle { transform-box: fill-box; transform-origin: center; }
+.cultivador .c-dan-h { animation: cmDan 2.6s ease-in-out infinite; }
+.cultivador .d-qi .c-dan-h { animation-delay: -.9s; } .cultivador .d-shen .c-dan-h { animation-delay: -1.7s; }
+@keyframes cmDan { 50% { transform: scale(1.22); } }
+.cultivador .c-dan.desvio .c-dan-h { animation: cmFalha 1.4s steps(2) infinite; }
+@keyframes cmFalha { 50% { opacity: .25; } }
+@keyframes cmDanAcende { 0% { transform: scale(1); } 35% { transform: scale(2.4); } 100% { transform: scale(1); } }
+.cultivador .c-anel { transform-origin: 150px 236px; animation: cmAnel 5s ease-in-out infinite; }
+@keyframes cmAnel { 50% { transform: scale(1.08); opacity: .15; } }
+.cultivador .c-corrente { fill: none; stroke-linecap: round; stroke-dasharray: 3 11; opacity: .75; animation: cmCorrente 1.1s linear infinite; }
+@keyframes cmCorrente { to { stroke-dashoffset: -28; } }
+.cultivador .c-espada { animation: cmEspada 5s ease-in-out infinite; }
+@keyframes cmEspada { 50% { transform: translate(-3px, -7px); } }
+.cultivador .c-halo { transform-origin: 150px 112px; animation: cmGira 30s linear infinite; }
+.cultivador .c-pilar { animation: cmPulso 4s ease-in-out infinite; }
+.cultivador .c-nucleo { transform-origin: 150px 238px; animation: cmDan 1.8s ease-in-out infinite; }
+@keyframes cmAuraToque { 30% { transform: scale(1.18); opacity: 1; } }
+.cultivador.mini .c-respira, .cultivador.mini .c-aura, .cultivador.mini .c-anel { animation: none; }
+.c-espada.e4 .esp-brilho, .c-espada.e3 .esp-brilho { animation: cmPulso 1.6s ease-in-out infinite; }
+.esp-faiscas circle { animation: cmFaisca 1.8s ease-out infinite; transform-box: fill-box; }
+.esp-faiscas circle:nth-child(2) { animation-delay: .5s; } .esp-faiscas circle:nth-child(3) { animation-delay: 1s; } .esp-faiscas circle:nth-child(4) { animation-delay: 1.4s; }
+@keyframes cmFaisca { 0% { opacity: 0; transform: translateY(4px); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(-14px); } }
+.c-jade.j3, .c-jade.j4 { filter: drop-shadow(0 0 5px rgba(160,255,220,.7)); }
+@media (prefers-reduced-motion: reduce) { .cultivador * { animation: none !important; } }

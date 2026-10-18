@@ -350,10 +350,8 @@ function verificarCompleto(dia, s, el){
   const ctx = contexto(), se = passosDoDia(deChave(dia), s, ctx), r = registos[dia], feitos = r[s] || {};
   const tudo = se.passos.length && se.passos.every(p => feitos[p.id]);
   if (tudo && !r[s + 'F']){
-    const antes = cultivo(); r[s + 'F'] = Date.now(); const depois = cultivo(), ganho = depois.qi - antes.qi;
-    if (depois.r > antes.r) festa('Rompeste para ' + depois.reino, depois.frase);
-    else if (depois.idx > antes.idx) festa('Avanças: ' + textoNivel(depois), '+' + ganho + ' qi absorvido');
-    else festa('Ritual completo', '+' + ganho + ' qi' + (depois.serie > 1 ? ' · ' + depois.serie + ' seguidos' : ''));
+    r[s + 'F'] = Date.now();
+    festa('Ritual completo', '+3 Shen para o teu cultivador');
     if (el){ const b = el.getBoundingClientRect(); qiExplosao(b.left + b.width / 2, b.top + b.height / 2); }
   } else if (!tudo) delete r[s + 'F'];
 }
@@ -429,7 +427,7 @@ function ouvir(btn, alvo, depois){
 
 /* ---------- Cópia de segurança ---------- */
 const dadosLocais = () => ({app: 'nascente', versao: 1, cfg: Object.assign(Object.fromEntries(PARTILHADO.map(k => [k, cfg[k]])), {ts: cfg.ts || 0}),
-  produtos, apagados, registos, pele, revisao, avaliacao});
+  produtos, apagados, registos, pele, respiracao, revisao, avaliacao});
 function exportar(){
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(Object.assign(dadosLocais(), {fotos, conversa, exportado: new Date().toISOString()}))], {type: 'application/json'}));
   a.download = 'nascente-' + diaChave(new Date()) + '.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
@@ -493,11 +491,12 @@ function fundir(r){
   };
   produtos = porId(produtos, r.produtos, 'atualizado');
   pele = porId(pele, r.pele, 'ts');
+  respiracao = porId(respiracao, r.respiracao, 'ts');
   for (const [k, v] of Object.entries(r.registos || {})) if (!registos[k] || (v.ts || 0) > (registos[k].ts || 0)) registos[k] = v;
   if (r.cfg && (r.cfg.ts || 0) > (cfg.ts || 0)){ for (const k of PARTILHADO) if (k in r.cfg) cfg[k] = r.cfg[k]; cfg.ts = r.cfg.ts; if (cfg.pele) cfg.pronto = true; LS.set('cfg', cfg); }
   if (r.revisao && (!revisao || r.revisao.ts > revisao.ts)){ revisao = r.revisao; LS.set('revisao', revisao); }
   if (r.avaliacao && (!avaliacao || r.avaliacao.ts > avaliacao.ts)){ avaliacao = r.avaliacao; LS.set('avaliacao', avaliacao); }
-  LS.set('produtos', produtos); LS.set('apagados', apagados); LS.set('pele', pele); LS.set('registos', registos);
+  LS.set('produtos', produtos); LS.set('apagados', apagados); LS.set('pele', pele); LS.set('registos', registos); LS.set('respiracao', respiracao);
   return JSON.stringify(dadosLocais()) !== antes;
 }
 let aSincronizar = false;
@@ -572,7 +571,7 @@ function passoQi(t){
 /* ---------- Capa: está em cultivo.js ---------- */
 
 /* ---------- Navegação ---------- */
-const RENDER = {vRitual: () => rRitual(), vFrascos: () => rFrascos(), vPele: () => rPele(), vMestre: () => rMestre(), vPerfil: () => rPerfil()};
+const RENDER = {vRitual: () => rRitual(), vFrascos: () => rFrascos(), vPele: () => rPele(), vMeditar: () => rMeditar(), vMestre: () => rMestre(), vPerfil: () => rPerfil()};
 function renderAtual(){ RENDER[vista](); atualizarTopo(); }
 function irPara(v){
   if (!RENDER[v]) v = 'vRitual';
@@ -594,11 +593,6 @@ const ACOES = {
   pExf(el){ cfg.exf = +el.dataset.v; guardarCfg(true); rPerfil(); },
   pRet(el){ cfg.retFixo = +el.dataset.v; guardarCfg(true); rPerfil(); },
   pHora(el){ cfg.horaNoite = +el.dataset.v; guardarCfg(true); rPerfil(); },
-  pCapa(el){ cfg.capa = cfg.capa === false; guardarCfg(); el.classList.toggle('on'); },
-  verCapa(){ fecharFolha(); mostrarCapa(true); },
-  verCaminho: folhaCaminho,
-  pSom(el){ cfg.som = cfg.som === false; guardarCfg(); el.classList.toggle('on'); },
-  pCapaMin(el){ cfg.capaMin = +el.dataset.v; guardarCfg(); rPerfil(); armarInatividade(); },
   usarChaveAlheia(){ cfg.chave = chaveDeOutraApp(); guardarCfg(); rPerfil(); ACOES.testarIA(); },
   verChave(){ const i = $('#pChave'); i.type = i.type === 'password' ? 'text' : 'password'; },
   async testarIA(){
@@ -699,6 +693,7 @@ const ACOES = {
   enviarPergunta(){ const t = $('#pergunta'); if (!t || !t.value.trim()) return; const q = t.value; t.value = ''; perguntarMestre(q); },
   limparConversa(){ if (!confirm('Apagar a conversa com o Mestre?')) return; conversa = []; LS.set('conversa', conversa); rMestre(); }
 };
+Object.assign(ACOES, ACOES_MED);
 const CAMPOS = {
   rNome: el => { rascunho.nome = el.value; }, rMarca: el => { rascunho.marca = el.value; }, rQtd: el => { rascunho.qtd = el.value; }, rModo: el => { rascunho.modo = el.value; },
   rEspera: el => { rascunho.espera = el.value; }, rConc: el => { rascunho.conc = el.value; }, rAviso: el => { rascunho.aviso = el.value; }, rAberto: el => { rascunho.aberto = el.value; },
@@ -711,7 +706,6 @@ const CAMPOS = {
 
 /* ---------- Eventos ---------- */
 document.addEventListener('click', e => {
-  if (!$('#capa').hidden && e.target.closest('#capa')) return toqueCapa(e);
   const v = e.target.closest('[data-vista]'); if (v){ irPara(v.dataset.vista); return; }
   const a = e.target.closest('[data-acao]'); if (!a) return;
   const f = ACOES[a.dataset.acao]; if (f) f(a, e);
@@ -720,6 +714,8 @@ document.addEventListener('input', e => { const c = e.target.closest('[data-camp
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'pergunta'){ e.preventDefault(); ACOES.enviarPergunta(); }
   if (e.key === 'Escape' && !$('#folha').hidden) fecharFolha();
+  else if (e.key === 'Escape' && !$('#sessao').hidden) ACOES.sesSair();
+  if (e.key === ' ' && !$('#sessao').hidden && !SES.fim){ e.preventDefault(); pausarSessao(); }
 });
 const CLICAVEL = '.btn, .chip, .item, .frasco, .dia, #nav button, .abas button, .marcar, .slot, .alerta[data-acao]';
 document.addEventListener('pointerdown', e => {
@@ -746,8 +742,6 @@ document.addEventListener('visibilitychange', () => {
   const q = new URLSearchParams(location.search);
   irPara(q.get('v') || 'vRitual');
   const a = agoraRitual(); ultimaSessao = diaChave(a.data) + a.s;
-  if (!cfg.cultivoInicio){ cfg.cultivoInicio = diaChave(new Date()); guardarCfg(true); }  // as falhas só contam a partir de hoje
-  if (cfg.pronto && cfg.capa !== false) mostrarCapa(); else armarInatividade();
   if (q.get('acao') === 'fotografar') setTimeout(fotografar, 400);
   estadoSync(); if (ghLigado()) agendarSync(700);
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});

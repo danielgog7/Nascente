@@ -240,86 +240,6 @@ details summary::-webkit-details-marker { display: none; }
 @keyframes gotaCai { 0% { transform: translateY(-30px); opacity: 0; } 15% { opacity: 1; } 55% { transform: translateY(32px); opacity: 1; } 60%, 100% { transform: translateY(32px); opacity: 0; } }
 @keyframes anel { 0%, 55% { transform: scale(.1); opacity: 0; } 60% { opacity: .9; } 100% { transform: scale(1); opacity: 0; } }
 
-/* ---------- Capa: o cultivador ---------- */
-#capa { position: fixed; inset: 0; z-index: 50; overflow: hidden; cursor: pointer; user-select: none; -webkit-user-select: none; background: #050d0b; animation: aparecer .5s ease; }
-#capa.sair { animation: capaSai .55s ease forwards; }
-@keyframes capaSai { to { opacity: 0; visibility: hidden; } }
-.capa-ceu { position: absolute; inset: 0; background: radial-gradient(90% 55% at 70% 12%, #163a33 0%, #0b211c 45%, #050d0b 100%); }
-.capa-paisagem { position: absolute; inset: 0; width: 100%; height: 100%; }
-#capaQi { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none; }
-.capa-topo { position: absolute; z-index: 4; top: calc(18px + env(safe-area-inset-top)); left: 0; right: 0; text-align: center; padding: 0 16px; }
-.capa-marca { font: 600 13px var(--serifa); letter-spacing: .5em; padding-left: .5em; color: var(--suave); opacity: .8; }
-.capa-reino { margin: 10px 0 0; font: 600 clamp(28px, 8vw, 40px)/1.05 var(--serifa); color: #f4fbf8; text-shadow: 0 0 22px var(--brilho), 0 0 2px rgba(255, 255, 255, .5); }
-.capa-nivel { margin: 6px 0 0; font: italic 500 19px var(--serifa); color: var(--ouro); }
-.capa-figura { position: absolute; z-index: 2; left: 50%; top: 50%; width: min(86vw, 400px); transform: translate(-50%, -54%); }
-.capa-figura .cultivador { width: 100%; height: auto; overflow: visible; display: block; position: relative; z-index: 2; }
-.capa-pedra { position: absolute; z-index: 1; left: 14%; right: 14%; bottom: 3%; height: 9%; border-radius: 50%; background: radial-gradient(ellipse at 50% 30%, #3a4a44, #1a2622 70%); box-shadow: 0 10px 30px rgba(0, 0, 0, .6); }
-.capa-ondas { position: absolute; z-index: 0; left: 50%; bottom: -1%; width: 0; height: 0; }
-.capa-ondas i { position: absolute; left: 0; top: 0; width: 300px; height: 60px; margin: -30px 0 0 -150px; border-radius: 50%; border: 1px solid rgba(190, 240, 222, .35); transform: scale(.2); opacity: 0; animation: ondaPedra 4.5s ease-out infinite; }
-.capa-ondas i:nth-child(2) { animation-delay: 1.5s; } .capa-ondas i:nth-child(3) { animation-delay: 3s; }
-@keyframes ondaPedra { 0% { transform: scale(.25); opacity: .7; } 100% { transform: scale(1.5); opacity: 0; } }
-.capa-base { position: absolute; z-index: 4; left: 0; right: 0; bottom: calc(22px + env(safe-area-inset-bottom)); padding: 0 24px; text-align: center; max-width: 520px; margin: 0 auto; }
-.capa-barra { height: 7px; border-radius: 999px; background: rgba(0, 0, 0, .45); border: 1px solid rgba(255, 255, 255, .1); overflow: hidden; }
-.capa-barra i { display: block; height: 100%; border-radius: inherit; box-shadow: 0 0 14px rgba(255, 240, 200, .5); }
-.capa-dados { display: flex; justify-content: space-between; gap: 10px; margin-top: 7px; font-size: 12.5px; color: var(--suave); }
-.capa-msg { margin: 12px 0 0; font-size: 14px; color: var(--nevoa); min-height: 20px; }
-.capa-sobe { color: var(--jade); } .capa-desce { color: var(--perigo); }
-.capa-dica { margin: 14px 0 6px; font: italic 500 17px var(--serifa); color: var(--suave); animation: pulsoTexto 2.6s ease-in-out infinite; }
-@keyframes pulsoTexto { 50% { opacity: .55; } }
-.capa-pontos { display: flex; justify-content: center; gap: 10px; }
-.capa-pontos i { width: 10px; height: 10px; border-radius: 50%; border: 1px solid rgba(227, 196, 126, .6); transition: background .2s, box-shadow .2s; }
-.capa-pontos i.on { background: var(--ouro); box-shadow: 0 0 10px var(--ouro); }
-.capa-onda { position: absolute; z-index: 3; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%; border: 2px solid rgba(255, 245, 210, .8); pointer-events: none; animation: capaOnda 1.1s ease-out forwards; }
-@keyframes capaOnda { to { transform: scale(18); opacity: 0; border-width: .5px; } }
-#capa.despertar::after { content: ''; position: absolute; inset: 0; z-index: 5; background: radial-gradient(circle at 50% 50%, rgba(255, 250, 230, .95), rgba(255, 240, 200, .4) 40%, transparent 75%); animation: clarao .9s ease forwards; pointer-events: none; }
-@keyframes clarao { 0% { opacity: 0; } 40% { opacity: 1; } 100% { opacity: .9; } }
-
-/* O cultivador e a energia */
-.cultivador .c-olhos-a { display: none; }
-.cultivador.r6 .c-olhos-a, #capa.despertar .c-olhos-a { display: inline; }
-.cultivador.r6 .c-olhos-f, #capa.despertar .c-olhos-f { display: none; }
-.cultivador .c-respira { transform-origin: 150px 300px; animation: respira 5.5s ease-in-out infinite; }
-@keyframes respira { 50% { transform: scale(1.012, 1.018); } }
-.cultivador .c-flutua { animation: flutua 6s ease-in-out infinite; }
-@keyframes flutua { 50% { transform: translateY(-8px); } }
-.cultivador .c-aura { transform-origin: 150px 230px; animation: auraPulso 4s ease-in-out infinite; }
-.cultivador.f2 .c-aura { animation-duration: 3s; } .cultivador.f3 .c-aura { animation-duration: 2.4s; } .cultivador.f4 .c-aura { animation-duration: 1.8s; }
-@keyframes auraPulso { 50% { transform: scale(1.06); opacity: .9; } }
-.cultivador .c-dantian { transform-origin: 150px 238px; animation: dantian 2.6s ease-in-out infinite; }
-@keyframes dantian { 50% { transform: scale(1.25); } }
-.cultivador .c-anel { transform-origin: 150px 236px; animation: anelGira 5s ease-in-out infinite; }
-@keyframes anelGira { 50% { transform: scale(1.08); opacity: .15; } }
-.cultivador .c-corrente { fill: none; stroke-linecap: round; stroke-dasharray: 3 11; opacity: .75; animation: corrente 1.1s linear infinite; filter: drop-shadow(0 0 3px currentColor); }
-@keyframes corrente { to { stroke-dashoffset: -28; } }
-.cultivador .c-espada { animation: espada 5s ease-in-out infinite; }
-@keyframes espada { 50% { transform: translate(-3px, -7px); } }
-.cultivador .c-alma { animation: flutua 4.5s ease-in-out infinite; }
-.cultivador .c-halo { transform-origin: 150px 112px; animation: halo 30s linear infinite; }
-@keyframes halo { to { transform: rotate(360deg); } }
-.cultivador .c-pilar { animation: pilar 4s ease-in-out infinite; }
-@keyframes pilar { 50% { opacity: .55; } }
-.cultivador .c-nucleo { transform-origin: 150px 238px; animation: dantian 1.8s ease-in-out infinite; }
-.capa-figura.pulso .cultivador .c-dantian { animation: dantianToque .8s ease-out; }
-.capa-figura.pulso .cultivador .c-aura { animation: auraToque .8s ease-out; }
-@keyframes dantianToque { 0% { transform: scale(1); } 30% { transform: scale(2.6); } 100% { transform: scale(1); } }
-@keyframes auraToque { 0% { transform: scale(1); } 30% { transform: scale(1.18); opacity: 1; } 100% { transform: scale(1); } }
-.cultivador.mini .c-respira, .cultivador.mini .c-aura, .cultivador.mini .c-anel { animation: none; }
-
-/* Cartão do cultivo e o caminho */
-.cultivo-cartao { cursor: pointer; }
-.cultivo-linha { display: flex; align-items: center; gap: 12px; padding-left: 6px; }
-.cultivo-mini { width: 78px; height: 92px; flex: none; }
-.cultivo-mini .cultivador { width: 100%; height: 100%; }
-.cultivo-reino { display: block; font: 600 22px/1.1 var(--serifa); }
-.caminho-reino { display: flex; gap: 12px; align-items: center; padding: 8px 4px; border-radius: 12px; }
-.caminho-reino .caminho-fig { width: 56px; height: 66px; flex: none; }
-.caminho-reino .caminho-fig .cultivador { width: 100%; height: 100%; }
-.caminho-reino .t { display: flex; flex-direction: column; gap: 1px; font-size: 13px; color: var(--suave); }
-.caminho-reino .t b { font: 600 18px var(--serifa); color: var(--texto); }
-.caminho-reino.atual { background: rgba(227, 196, 126, .08); border: 1px solid rgba(227, 196, 126, .35); }
-.caminho-reino.atual .t .mini { color: var(--ouro); }
-.caminho-reino.futuro { opacity: .5; } .caminho-reino.futuro .caminho-fig { filter: grayscale(.7) brightness(.7); }
-
 /* ---------- Avisos ---------- */
 .toast { position: fixed; z-index: 60; left: 50%; bottom: calc(var(--nav) + 26px + env(safe-area-inset-bottom)); transform: translateX(-50%); max-width: calc(100% - 32px); width: max-content;
   padding: 11px 16px; border-radius: 14px; background: rgba(12, 34, 30, .96); border: 1px solid var(--linha2); box-shadow: var(--sombra); font-size: 14px; animation: subir .3s ease; }
@@ -367,3 +287,65 @@ a.btn { text-decoration: none; }
 .hist-dia:first-child { border-top: 0; }
 .hist-sess { display: grid; grid-template-columns: 20px 1fr; gap: 8px; align-items: start; color: var(--nevoa); line-height: 1.45; }
 .hist-ic svg { width: 16px; height: 16px; margin-top: 2px; }
+
+/* ---------- Meditar ---------- */
+.med-hero { padding: 0; overflow: hidden; }
+.med-palco { position: relative; height: 300px; overflow: hidden; }
+.med-palco .capa-paisagem { position: absolute; inset: 0; width: 100%; height: 100%; }
+.med-fig { position: absolute; left: 50%; bottom: 28px; width: 205px; transform: translateX(-50%); }
+.med-fig .cultivador, .ses-fig .cultivador { width: 100%; height: auto; position: relative; z-index: 2; overflow: visible; display: block; }
+.med-info { padding: 12px 16px 16px; }
+.med-shen { display: block; font: 600 24px var(--serifa); color: #eefaf5; margin-top: 2px; }
+.med-shen span { color: #4FD6D6; text-shadow: 0 0 12px rgba(79, 214, 214, .6); }
+.med-shen small { font: 400 14px system-ui, sans-serif; color: var(--suave); }
+.med-partes { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.med-partes span { font-size: 12px; color: var(--suave); padding: 3px 10px; border-radius: 999px; border: 1px solid var(--linha); display: inline-flex; gap: 6px; }
+.med-partes span b { font-weight: 600; }
+.med-partes span.on { color: #bff4f4; border-color: rgba(79, 214, 214, .5); background: rgba(79, 214, 214, .08); }
+.med-ic { width: 42px; height: 42px; flex: none; border-radius: 12px; display: grid; place-items: center; color: #4FD6D6; background: rgba(79, 214, 214, .08); border: 1px solid rgba(79, 214, 214, .25); }
+.med-ic svg { width: 24px; height: 24px; }
+.med-sug { border-color: rgba(79, 214, 214, .3); }
+.med-noite { border-color: rgba(79, 214, 214, .3); background: linear-gradient(160deg, rgba(20, 52, 60, .78), rgba(10, 29, 26, .74)); }
+.med-gota { width: 22px; height: 22px; border-radius: 50%; border: 1px solid rgba(79, 214, 214, .35); }
+.med-gota.on { background: radial-gradient(circle, #e9ffff, #4FD6D6 45%, rgba(79, 214, 214, .15) 80%); border-color: #4FD6D6; box-shadow: 0 0 10px rgba(79, 214, 214, .6); }
+.med-passos { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.med-ritmo { display: flex; gap: 6px; }
+.med-ritmo span { flex: 1; text-align: center; padding: 8px 4px; border-radius: 12px; border: 1px solid var(--linha); font-size: 12px; color: var(--suave); line-height: 1.25; }
+.med-ritmo b { display: block; font: 600 18px var(--serifa); color: #4FD6D6; }
+.med-ritmo .mr-hold b, .med-ritmo .mr-hold2 b { color: var(--ouro); } .med-ritmo .mr-out b { color: var(--lua); }
+
+/* A sessão */
+#sessao { position: fixed; inset: 0; z-index: 55; overflow: hidden; background: #03060b; user-select: none; -webkit-user-select: none; animation: aparecer .5s ease; }
+.ses-fundo, .ses-fundo .capa-paisagem { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ses-fundo { filter: brightness(.72) saturate(.9); }
+#sesQi { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none; }
+.ses-topo { position: absolute; z-index: 6; top: calc(10px + env(safe-area-inset-top)); left: 10px; right: 16px; display: flex; align-items: center; gap: 10px; }
+.ses-topo b { display: block; font-size: 20px; color: #eefaf5; } .ses-topo small { color: var(--suave); font-size: 12px; }
+.ses-tempo { font: 600 17px var(--serifa); color: var(--suave); min-width: 42px; text-align: right; font-variant-numeric: tabular-nums; }
+.ses-fig { position: absolute; z-index: 2; left: 50%; top: 46%; width: min(76vw, 360px, 44vh); transform: translate(-50%, -50%); }
+.ses-guia { position: absolute; z-index: 1; pointer-events: none; }
+.ses-guia i { display: block; width: 100%; height: 100%; border-radius: 50%; border: 1.5px solid rgba(79, 214, 214, .55); transform: scale(.42);
+  background: radial-gradient(circle, rgba(79, 214, 214, .1), rgba(79, 214, 214, .02) 60%, transparent 70%); box-shadow: 0 0 34px rgba(79, 214, 214, .25), inset 0 0 30px rgba(79, 214, 214, .15); }
+#sessao[data-fase="hold"] .ses-guia i, #sessao[data-fase="hold2"] .ses-guia i { border-color: rgba(227, 196, 126, .75); box-shadow: 0 0 34px rgba(227, 196, 126, .3), inset 0 0 30px rgba(227, 196, 126, .12); }
+#sessao[data-fase="out"] .ses-guia i { border-color: rgba(195, 177, 234, .6); }
+.ses-base { position: absolute; z-index: 6; left: 0; right: 0; bottom: calc(20px + env(safe-area-inset-bottom)); text-align: center; padding: 0 24px; max-width: 520px; margin: 0 auto; }
+.ses-base::before { content: ''; position: absolute; left: -40px; right: -40px; bottom: -40px; height: 260px; z-index: -1; background: linear-gradient(to top, rgba(3, 6, 11, .9), rgba(3, 6, 11, .5) 55%, transparent); pointer-events: none; }
+.ses-fase { margin: 0; font: 600 clamp(21px, 6.2vw, 29px)/1.25 var(--serifa); color: #f4fbf8; text-shadow: 0 0 18px rgba(79, 214, 214, .45); min-height: 2.5em; display: flex; align-items: center; justify-content: center; }
+.ses-ciclo { margin: 0; min-height: 18px; }
+.ses-conta { margin: 2px 0 10px; font: 600 36px/1.1 var(--serifa); color: #4FD6D6; min-height: 40px; font-variant-numeric: tabular-nums; }
+.ses-barra { height: 4px; border-radius: 99px; background: rgba(255, 255, 255, .08); overflow: hidden; margin-bottom: 12px; }
+.ses-barra i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #2c7360, #4FD6D6, #e9ffff); }
+.ses-ctrl { display: flex; justify-content: center; gap: 10px; }
+.cultivador.guiado .c-respira, .cultivador.guiado .c-aura { animation: none !important; }
+.ses-zona { position: absolute; z-index: 3; width: var(--tam); aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none; mix-blend-mode: screen; }
+.ses-zona.contrai { background: radial-gradient(circle, rgba(255, 176, 112, .95), rgba(255, 120, 60, .4) 45%, transparent 70%); animation: zonaAperta .5s ease-in-out infinite alternate; }
+.ses-zona.solta { background: radial-gradient(circle, rgba(210, 255, 250, .9), rgba(79, 214, 214, .4) 45%, transparent 70%); animation: zonaSolta 15s ease-out forwards; }
+.ses-zona.voz { background: radial-gradient(circle, rgba(79, 214, 214, .28), transparent 65%); animation: zonaSolta 14s ease-out forwards; }
+@keyframes zonaAperta { from { transform: translate(-50%, -50%) scale(.85); } to { transform: translate(-50%, -50%) scale(1.12); } }
+@keyframes zonaSolta { from { opacity: 1; transform: translate(-50%, -50%) scale(1); } to { opacity: .12; transform: translate(-50%, -50%) scale(1.5); } }
+#sessao.pausado .ses-fig, #sessao.pausado .ses-guia { filter: saturate(.4) brightness(.75); }
+#sessao.fim .c-olhos-a { display: inline; } #sessao.fim .c-olhos-f { display: none; }
+#sessao.fim .ses-guia i { transform: scale(1.5) !important; opacity: 0; transition: transform 1.4s ease, opacity 1.4s ease; }
+#sessao.fim .d-shen .c-dan-h { transform: scale(3) !important; transition: transform .9s ease; }
+.centro-chips { justify-content: center; margin-bottom: 12px; }
+@media (min-width: 420px) { #nav button { font-size: 11.5px; } }

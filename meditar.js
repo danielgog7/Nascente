@@ -53,9 +53,9 @@ const EXERCICIOS = [
 ];
 const EXI = Object.fromEntries(EXERCICIOS.map(e => [e.id, e]));
 
-// Relaxamento muscular: zonas do cultivador (coordenadas do desenho 300 x 360).
-const ZONAS = {pes: [[118, 304], [182, 304]], pernas: [[100, 288], [200, 288]], barriga: [[150, 236]], peito: [[150, 190]], maos: [[150, 257]], bracos: [[88, 222], [212, 222]],
-  ombros: [[112, 160], [188, 160]], pescoco: [[150, 142]], maxilar: [[150, 130]], rosto: [[150, 112]], testa: [[150, 98]], tudo: [[150, 200]]};
+// Relaxamento muscular: zonas do teu cultivador de perfil (coordenadas do desenho 300 x 360, virado para a direita).
+const ZONAS = {pes: [[222, 300]], pernas: [[132, 298], [206, 292]], barriga: [[150, 238]], peito: [[162, 188]], maos: [[204, 256]], bracos: [[140, 204]],
+  ombros: [[140, 160]], pescoco: [[150, 140]], maxilar: [[166, 130]], rosto: [[164, 112]], testa: [[164, 98]], tudo: [[165, 210]]};
 const PMR = [
   ['pes', 'Encolhe os dedos dos pés e aperta os pés.', 'Solta. Sente os pés pesados e quentes.'],
   ['pernas', 'Estica as pernas e aperta as coxas e os gémeos.', 'Solta as pernas. Deixa-as cair.'],
@@ -93,11 +93,19 @@ function shenHoje(){
 }
 // O retrato que o Mirante guardou neste navegador (as apps partilham o endereço e a memória).
 function retratoMirante(){ try { const r = JSON.parse(localStorage.getItem('mirante.retrato')); return r && typeof r.r === 'number' ? r : null; } catch(e){ return null; } }
-function avatarSinc(id, extra = {}){
+function avatarSinc(id, extra = {}, desenho = avatarM){
   const R = retratoMirante(), sh = shenHoje(), hojeK = diaChave(new Date());
   const hoje = R && R.dia === hojeK ? Object.assign({}, R.hoje) : {jing: 0, qi: 0, forma: 0};
   const tes = Object.assign({ativos: R ? Object.assign({}, R.ativos, {shen: true}) : {shen: true}}, hoje, {shen: sh.total});
-  return avatarM(Object.assign({r: R ? R.r : 0, f: R ? R.pct : 0, fluxo: R ? R.fluxoN || 0 : 0, id, tes, desvio: R ? (R.desvio || []).filter(t => t !== 'shen') : [], obj: R ? R.obj : null}, extra));
+  return desenho(Object.assign({r: R ? R.r : 0, f: R ? R.pct : 0, fluxo: R ? R.fluxoN || 0 : 0, id, tes, desvio: R ? (R.desvio || []).filter(t => t !== 'shen') : [], obj: R ? R.obj : null}, extra));
+}
+
+// A cena da meditação: tu à esquerda, de perfil e igual ao Mirante (reino, cores, objetos, dantians),
+// frente a frente com o Mestre à direita, e a nascente entre os dois.
+function cenaDupla(id, P, dentroEu = ''){
+  return `<div class="dupla" id="${id}Dupla"><div class="dupla-fonte"><i></i><i></i><i></i><b></b></div>
+    <div class="dupla-eu capa-figura p${P.p}" id="${id}Eu">${P.base}${avatarSinc(id, {}, avatarPerfilM)}${dentroEu}</div>
+    <div class="dupla-mestre" id="${id}Mestre">${mestrePerfil(id + 'm')}</div></div>`;
 }
 
 /* ---------- Vista Meditar ---------- */
@@ -118,7 +126,7 @@ function rMeditar(){
   const ult = respiracao.slice().sort((a, b) => b.ts - a.ts).slice(0, 5);
   $('#vMeditar').innerHTML = `<h1 class="titulo-vista">Meditar</h1><p class="sub-vista">Poucos minutos para acalmar o espírito antes de dormir.</p>
     <div class="placa simples med-hero">
-      <div class="med-palco">${P.fundo}<div class="med-fig capa-figura p${P.p}">${P.base}${avatarSinc('mh')}</div></div>
+      <div class="med-palco">${P.fundo}${cenaDupla('mh', P)}</div>
       <div class="med-info">
         <span class="suave mini">${R ? 'O teu cultivador · ' + esc(R.reino) : 'O teu cultivador'}</span>
         <b class="med-shen">Shen <span>${sh.total}</span> <small>de 10 hoje</small></b>
@@ -185,12 +193,13 @@ function comecarSessao(id){
   el.innerHTML = `<div class="ses-fundo">${P.fundo}</div><canvas id="sesQi" aria-hidden="true"></canvas>
     <div class="ses-topo"><button class="btn icone fantasma" data-acao="sesSair" aria-label="Terminar">${IC.x}</button>
       <div class="cresce centro"><b class="serifa">${esc(e.nome)}</b><small>${R ? esc(R.reino) : ''}</small></div><span id="sesTempo" class="ses-tempo"></span></div>
-    <div class="ses-fig capa-figura p${P.p}" id="sesFig">${P.base}<div class="ses-guia" id="sesGuia"><i></i></div>${avatarSinc('ss')}<div id="sesZonas"></div></div>
+    <div class="ses-dupla" id="sesFig"><div class="ses-guia" id="sesGuia"><i></i></div>${cenaDupla('ss', P, '<div id="sesZonas"></div>')}</div>
     <div class="ses-base"><p class="ses-fase" id="sesFase"></p><p class="ses-ciclo mini suave" id="sesCiclo"></p><p class="ses-conta" id="sesConta"></p>
       <div class="ses-barra"><i id="sesBarra"></i></div>
       <div class="ses-ctrl"><button class="btn fantasma peq-btn" data-acao="sesPausa" id="sesPausaB">${IC.pausa} Pausa</button><button class="btn fantasma peq-btn" data-acao="sesSom" id="sesSomB">${cfg.medSom !== false ? 'Som ligado' : 'Som desligado'}</button></div></div>`;
   ses.cv = $('#sesQi'); ses.c = ses.cv.getContext('2d'); ses.ps = []; ses.spr = spriteSes(SHEN_RGB); ses.sprB = spriteSes('235,255,250');
-  ses.figura = $('#sesFig .cultivador'); if (ses.figura) ses.figura.classList.add('guiado');
+  ses.figura = $('#ssEu .cultivador'); ses.mestre = $('#ssMestre .mestre-perfil');
+  [ses.figura, ses.mestre].forEach(f => f && f.classList.add('guiado'));
   sesGeo(); pedirTrava();
   try { speechSynthesis.cancel(); } catch(e){}
   cancelAnimationFrame(SES.raf); SES.raf = requestAnimationFrame(passoSessao);
@@ -200,10 +209,13 @@ function spriteSes(cor){ const s = document.createElement('canvas'); s.width = s
 function sesGeo(){
   if (!ses.cv) return; const dpr = Math.min(1.5, devicePixelRatio || 1);
   ses.w = innerWidth; ses.h = innerHeight; ses.cv.width = ses.w * dpr; ses.cv.height = ses.h * dpr; ses.c.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const svgEl = $('#sesFig .cultivador'); if (!svgEl) return;
+  const svgEl = $('#ssEu .cultivador'), mEl = $('#ssMestre .mestre-perfil'), caixa = $('#sesFig'); if (!svgEl || !caixa) return;
   const b = svgEl.getBoundingClientRect(), pt = (x, y) => ({x: b.left + x / 300 * b.width, y: b.top + y / 360 * b.height});
-  ses.alvo = pt(150, 99); ses.corpo = pt(150, 200); ses.box = b;
-  const g = $('#sesGuia'); if (g){ const c = pt(150, 190), r = b.width * .62; Object.assign(g.style, {left: (c.x - b.left - r) + 'px', top: (c.y - b.top - r) + 'px', width: 2 * r + 'px', height: 2 * r + 'px'}); }
+  ses.alvo = pt(150, 99); ses.corpo = pt(160, 200); ses.box = b;
+  // A guia da respiração: um círculo de água entre os dois, à altura do peito.
+  const g = $('#sesGuia'), cx = caixa.getBoundingClientRect(), m = mEl ? mEl.getBoundingClientRect() : b;
+  if (g){ const x = (pt(178, 0).x + m.left + m.width * 122 / 300) / 2, y = pt(0, 158).y, r = cx.width * .14;
+    Object.assign(g.style, {left: (x - cx.left - r) + 'px', top: (y - cx.top - r) + 'px', width: 2 * r + 'px', height: 2 * r + 'px'}); }
 }
 addEventListener('resize', () => { if (SES.on) setTimeout(sesGeo, 60); });
 const easeIO = p => p < .5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
@@ -232,12 +244,15 @@ function passoSessao(ts){
   $('#sesBarra').style.width = (prog * 100).toFixed(1) + '%';
   const falta = Math.max(0, Math.ceil(SES.total - t)); $('#sesTempo').textContent = `${Math.floor(falta / 60)}:${pad(falta % 60)}`;
   const g = $('#sesGuia i'); if (g) g.style.transform = `scale(${(.42 + e * .58).toFixed(3)})`;
-  if (ses.figura){
-    const corpo = ses.figura.querySelector('.c-respira'), aura = ses.figura.querySelector('.c-aura'), shen = ses.figura.querySelector('.d-shen .c-dan-h');
+  // Tu e o Mestre respiram juntos.
+  for (const fig of [ses.figura, ses.mestre]){
+    if (!fig) continue;
+    const corpo = fig.querySelector('.c-respira'), aura = fig.querySelector('.c-aura');
     if (corpo) corpo.style.transform = `scale(${(1 + e * .022).toFixed(4)}, ${(1 + e * .034).toFixed(4)})`;
     if (aura){ aura.style.transform = `scale(${(1 + e * .1).toFixed(3)})`; aura.style.opacity = (.35 + e * .45 + prog * .2).toFixed(2); }
-    if (shen) shen.style.transform = `scale(${(1 + prog * 1.4 + (F.f === 'out' ? (1 - p) * .25 : 0)).toFixed(3)})`;
   }
+  const shen = ses.figura && ses.figura.querySelector('.d-shen .c-dan-h');
+  if (shen) shen.style.transform = `scale(${(1 + prog * 1.4 + (F.f === 'out' ? (1 - p) * .25 : 0)).toFixed(3)})`;
   // Partículas de Shen: entram na testa ao inspirar; ao expirar, uma bruma clara sai do corpo.
   const taxa = SES.pausadoEm ? 0 : SES.ex.tipo === 'resp' ? ({in: 42, in2: 60, hold: 6, hold2: 2, out: 0, prep: 6})[F.f] || 8 : F.f === 'solta' ? 26 : 12;
   ses.acc += dt * taxa;

@@ -292,8 +292,29 @@ a.btn { text-decoration: none; }
 .med-hero { padding: 0; overflow: hidden; }
 .med-palco { position: relative; height: 300px; overflow: hidden; }
 .med-palco .capa-paisagem { position: absolute; inset: 0; width: 100%; height: 100%; }
-.med-fig { position: absolute; left: 50%; bottom: 28px; width: 205px; transform: translateX(-50%); }
-.med-fig .cultivador, .ses-fig .cultivador { width: 100%; height: auto; position: relative; z-index: 2; overflow: visible; display: block; }
+/* A cena: tu (perfil, igual ao Mirante) à esquerda e o Mestre à direita, frente a frente, com a nascente entre os dois */
+.dupla { position: absolute; left: 50%; bottom: 0; width: min(100%, 440px); aspect-ratio: 1.42; transform: translateX(-50%); }
+.dupla-eu { position: absolute; z-index: 2; left: 1%; bottom: 8%; width: 47%; }
+.dupla-eu .cultivador { width: 100%; height: auto; position: relative; z-index: 2; overflow: visible; display: block; }
+.dupla-mestre { position: absolute; z-index: 2; right: 0; bottom: 10%; width: 50%; }
+.mestre-perfil { width: 100%; height: auto; display: block; overflow: visible; transform: scaleX(-1); }
+.mestre-perfil .c-olhos-a { display: none; }
+.mestre-perfil .mp-flutua { animation: mFlutua 6s ease-in-out infinite; }
+.mestre-perfil .mp-disco { transform-origin: 167px 338px; animation: mDisco 6s ease-in-out infinite; }
+.mestre-perfil .c-respira { transform-origin: 150px 300px; animation: cmRespira 5.5s ease-in-out infinite; animation-delay: -1.2s; }
+.mestre-perfil .c-aura { transform-origin: 150px 230px; animation: cmAura 4s ease-in-out infinite; }
+.mestre-perfil .mp-barba { transform-origin: 166px 128px; animation: mBarba 7s ease-in-out infinite; }
+.mestre-perfil .mp-sobr { transform-origin: 160px 104px; animation: mSobrD 6s ease-in-out infinite; }
+.mestre-perfil.guiado .c-respira, .mestre-perfil.guiado .c-aura { animation: none !important; }
+.dupla-fonte { position: absolute; z-index: 1; left: 50%; bottom: 7%; width: 24%; aspect-ratio: 3; transform: translateX(-50%); border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(220, 255, 245, .55), rgba(79, 214, 214, .2) 55%, transparent); }
+.dupla-fonte i { position: absolute; inset: 0; border-radius: 50%; border: 1px solid rgba(200, 245, 235, .45); opacity: 0; animation: fonteOnda 4.5s ease-out infinite; }
+.dupla-fonte i:nth-child(2) { animation-delay: 1.5s; } .dupla-fonte i:nth-child(3) { animation-delay: 3s; }
+@keyframes fonteOnda { 0% { transform: scale(.2); opacity: .8; } 100% { transform: scale(1.9); opacity: 0; } }
+.dupla-fonte b { position: absolute; left: 50%; bottom: 42%; width: 8%; height: 90%; transform: translateX(-50%); border-radius: 50% 50% 40% 40%; transform-origin: 50% 100%;
+  background: linear-gradient(to top, rgba(235, 255, 250, .85), rgba(160, 236, 220, .25) 70%, transparent); filter: blur(1px); animation: borbulha 1.8s ease-in-out infinite; }
+@keyframes borbulha { 50% { transform: translateX(-50%) scaleY(1.35) scaleX(.85); opacity: .7; } }
+#sesZonas { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
 .med-info { padding: 12px 16px 16px; }
 .med-shen { display: block; font: 600 24px var(--serifa); color: #eefaf5; margin-top: 2px; }
 .med-shen span { color: #4FD6D6; text-shadow: 0 0 12px rgba(79, 214, 214, .6); }
@@ -322,7 +343,8 @@ a.btn { text-decoration: none; }
 .ses-topo { position: absolute; z-index: 6; top: calc(10px + env(safe-area-inset-top)); left: 10px; right: 16px; display: flex; align-items: center; gap: 10px; }
 .ses-topo b { display: block; font-size: 20px; color: #eefaf5; } .ses-topo small { color: var(--suave); font-size: 12px; }
 .ses-tempo { font: 600 17px var(--serifa); color: var(--suave); min-width: 42px; text-align: right; font-variant-numeric: tabular-nums; }
-.ses-fig { position: absolute; z-index: 2; left: 50%; top: 46%; width: min(76vw, 360px, 44vh); transform: translate(-50%, -50%); }
+.ses-dupla { position: absolute; z-index: 2; left: 50%; top: 47%; width: min(98vw, 560px, 62vh); aspect-ratio: 1.42; transform: translate(-50%, -50%); }
+.ses-dupla .dupla { width: 100%; }
 .ses-guia { position: absolute; z-index: 1; pointer-events: none; }
 .ses-guia i { display: block; width: 100%; height: 100%; border-radius: 50%; border: 1.5px solid rgba(79, 214, 214, .55); transform: scale(.42);
   background: radial-gradient(circle, rgba(79, 214, 214, .1), rgba(79, 214, 214, .02) 60%, transparent 70%); box-shadow: 0 0 34px rgba(79, 214, 214, .25), inset 0 0 30px rgba(79, 214, 214, .15); }
@@ -343,7 +365,7 @@ a.btn { text-decoration: none; }
 .ses-zona.voz { background: radial-gradient(circle, rgba(79, 214, 214, .28), transparent 65%); animation: zonaSolta 14s ease-out forwards; }
 @keyframes zonaAperta { from { transform: translate(-50%, -50%) scale(.85); } to { transform: translate(-50%, -50%) scale(1.12); } }
 @keyframes zonaSolta { from { opacity: 1; transform: translate(-50%, -50%) scale(1); } to { opacity: .12; transform: translate(-50%, -50%) scale(1.5); } }
-#sessao.pausado .ses-fig, #sessao.pausado .ses-guia { filter: saturate(.4) brightness(.75); }
+#sessao.pausado .ses-dupla, #sessao.pausado .ses-guia { filter: saturate(.4) brightness(.75); }
 #sessao.fim .c-olhos-a { display: inline; } #sessao.fim .c-olhos-f { display: none; }
 #sessao.fim .ses-guia i { transform: scale(1.5) !important; opacity: 0; transition: transform 1.4s ease, opacity 1.4s ease; }
 #sessao.fim .d-shen .c-dan-h { transform: scale(3) !important; transition: transform .9s ease; }
@@ -372,7 +394,7 @@ a.btn { text-decoration: none; }
 .capa-ondas i { position: absolute; left: 0; top: 0; width: 280px; height: 34px; margin: -17px 0 0 -140px; border-radius: 50%; border: 1px solid rgba(190, 240, 222, .32); opacity: 0; animation: ondaPedra 5s ease-out infinite; }
 .capa-ondas i:nth-child(2) { animation-delay: 1.66s; } .capa-ondas i:nth-child(3) { animation-delay: 3.33s; }
 @keyframes ondaPedra { 0% { transform: scale(.25); opacity: .7; } 100% { transform: scale(1.6); opacity: 0; } }
-.capa-figura { position: absolute; z-index: 2; left: 50%; bottom: 24.5%; width: min(84vw, 48vh, 380px); transform: translateX(-50%); }
+.capa-mestre-fig { position: absolute; z-index: 2; left: 50%; bottom: 24.5%; width: min(84vw, 48vh, 380px); transform: translateX(-50%); }
 .capa-astro { position: absolute; z-index: 0; left: 50%; top: 25.5%; width: 74%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; transition: transform 1s ease, filter 1s ease;
   background: radial-gradient(circle, #f6efd8 0 27%, rgba(233, 223, 191, .55) 29%, rgba(159, 211, 196, .12) 48%, transparent 70%); animation: astro 8s ease-in-out infinite; }
 #capa.h-manha .capa-astro { background: radial-gradient(circle, #fff1cf 0 25%, rgba(251, 222, 166, .6) 28%, rgba(246, 200, 140, .14) 50%, transparent 70%); }

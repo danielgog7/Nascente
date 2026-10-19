@@ -131,6 +131,42 @@ function svgMestre(){
 </svg>`;
 }
 
+/* ---------- O Mestre de perfil (para a cena do Meditar): o mesmo velho mestre, sentado de lado, virado para a direita ---------- */
+function mestrePerfil(id = 'mp'){
+  const C = corpoPerfilM({id, orla: '#d6b56e', interior: '#fbfdfc', manto2: '#a9bfb5', pele: '#e6cfb2', peleS: '#c9ab8a', gola: '#2f6b5c', cinto: '#24584b'});
+  return `<svg class="mestre-perfil" viewBox="0 0 300 360" aria-hidden="true">
+  <defs>
+    <linearGradient id="${id}gManto" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3f8f5"/><stop offset=".6" stop-color="#d6e3dd"/><stop offset="1" stop-color="#a9bfb5"/></linearGradient>
+    <linearGradient id="${id}gBarba" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fdfdfb"/><stop offset=".7" stop-color="#e6ece8"/><stop offset="1" stop-color="#c7d3cd" stop-opacity=".55"/></linearGradient>
+    <radialGradient id="${id}gDisco" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#bff5e2" stop-opacity=".55"/><stop offset=".6" stop-color="#7fd1b4" stop-opacity=".14"/><stop offset="1" stop-color="#7fd1b4" stop-opacity="0"/></radialGradient>
+    <radialGradient id="${id}gAura" cx=".5" cy=".55" r=".55"><stop offset="0" stop-color="#bff5e2" stop-opacity=".8"/><stop offset=".55" stop-color="#7fd1b4" stop-opacity=".2"/><stop offset="1" stop-color="#7fd1b4" stop-opacity="0"/></radialGradient>
+  </defs>
+  <g transform="translate(16 0)"><path class="c-aura" d="M150 34 C206 58 246 120 250 200 C254 262 226 316 150 330 C74 316 46 262 50 200 C54 120 94 58 150 34Z" fill="url(#${id}gAura)" opacity=".4"/></g>
+  <ellipse class="mp-disco" cx="167" cy="338" rx="112" ry="12" fill="url(#${id}gDisco)"/>
+  <g class="mp-flutua">
+    ${C.pernas}<path d="M98 316 C140 322 204 322 238 306" stroke="#d6b56e" stroke-width="2" fill="none" opacity=".8"/>
+    <g class="c-respira">
+      ${C.tronco}
+      <path d="M125 104 C116 142 112 182 115 216 L129 216 C126 182 128 144 136 114Z" fill="#e3e9e5"/>
+      ${C.manga}${C.maos}
+      <path d="M178 229 L178 243" stroke="#d6b56e" stroke-width="1"/><circle cx="178" cy="248" r="5" fill="#7fd1b4" stroke="#2c7360"/><circle cx="178" cy="248" r="1.6" fill="#24584b"/>
+      ${C.pescoco}${C.cabeca}${C.orelha}
+      <path d="M160 90 Q165 89.4 170 92 M161 95.5 Q166 95 171 97.5" stroke="#a88a6a" stroke-width=".8" fill="none" opacity=".55"/>
+      <g class="c-olhos-f"><path d="M160 110.5 Q164.5 113.6 169 111" stroke="#5b4636" stroke-width="1.5" fill="none" stroke-linecap="round"/></g>
+      <g class="c-olhos-a"><path d="M160 110.6 Q165 107.4 169.6 110.6 Q165 113.2 160 110.6Z" fill="#f4f0e4"/><circle cx="165.6" cy="110.4" r="1.8" fill="#6ff0c8"/><circle cx="166" cy="110" r=".5" fill="#fff"/></g>
+      <path d="M124 112 C119 92 130 77 147 75 C156 75 162 77 165 81 C155 82 146 86 141 95 C139 102 138 110 136 118 C131 121 126 118 124 112Z" fill="#eef2ee"/>
+      <circle cx="140" cy="70" r="10" fill="#f2f5f1"/><path d="M131 75 Q140 79 149 75" stroke="#24584b" stroke-width="3" fill="none"/>
+      <path d="M118 67 L163 58" stroke="#c9a65a" stroke-width="2.2" stroke-linecap="round"/><circle cx="163.5" cy="58" r="2.6" fill="#7fd1b4"/>
+      <path class="mp-sobr" d="M158 103.5 C163 100.4 169 100.4 173.2 103 C170 104.2 166 104.7 163 106.2 C160 111 158 121 155 132 C155.3 120 156 110 158 103.5Z" fill="#f5f7f4"/>
+      <g class="mp-barba">
+        <path d="M158 127 C163 128.5 169 128.5 173.5 125 C176 133 176.5 147 178 165 C180 187 182 208 177 236 C171 214 165 192 161 172 C157 155 155 140 158 127Z" fill="url(#${id}gBarba)"/>
+        <path d="M166 131 C168 160 172 192 176 228 M171 130 C173 156 177 186 178.5 214 M161 134 C163 152 166 170 169 186" stroke="#b9c4be" stroke-width=".7" fill="none" opacity=".75"/>
+      </g>
+    </g>
+  </g>
+</svg>`;
+}
+
 /* ---------- Montar a capa ---------- */
 function horaCapa(){ const h = new Date().getHours(); return h < 5 || h >= 20 ? 'noite' : h < 12 ? 'manha' : 'tarde'; }
 function estadoCapa(){
@@ -149,7 +185,7 @@ function renderCapa(){
     </svg>
     <div class="capa-nevoa n1"></div><div class="capa-nevoa n2"></div>
     <div class="capa-lago"><div class="capa-reflexo"></div><div class="capa-ondas"><i></i><i></i><i></i></div></div>
-    <div class="capa-figura" id="capaFig"><div class="capa-astro"></div><div class="capa-aura"></div>${svgMestre()}</div>
+    <div class="capa-mestre-fig" id="capaFig"><div class="capa-astro"></div><div class="capa-aura"></div>${svgMestre()}</div>
     <canvas id="capaQi" aria-hidden="true"></canvas>
     <div class="capa-topo"><div class="capa-marca">NASCENTE</div>
       <div class="capa-fala" id="capaFala"><p class="capa-sub">O Mestre medita sobre a nascente</p></div></div>

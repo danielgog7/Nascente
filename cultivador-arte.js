@@ -1,8 +1,8 @@
 'use strict';
 /* Cultivador: o desenho comum às apps (Mirante e Nascente). Este ficheiro é IGUAL nos dois repositórios:
    quando mudar num, copia-se para o outro (ver ARTE_VERSAO). Tem o personagem (avatarM), os três tesouros,
-   os objetos das apps, a lua verdadeira e os palcos dos reinos. Não depende de nada de nenhuma das apps. */
-const ARTE_VERSAO = '2026-10-18';
+   os objetos das apps, a lua verdadeira e os palcos dos reinos. O avatarPerfilM é o mesmo personagem visto de lado. Não depende de nada de nenhuma das apps. */
+const ARTE_VERSAO = '2026-10-19';
 const clampA = (v, a, b) => Math.max(a, Math.min(b, v));
 const diaNumA = (d = new Date()) => Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5;
 
@@ -234,4 +234,91 @@ function avatarM({r: rm = 0, f = 0, fluxo = 0, mini = false, id = 'a', tes = nul
 </svg>`;
 }
 
-
+/* ---------- O cultivador de perfil: sentado de lado, virado para a direita ----------
+   É o mesmo personagem do avatarM: as mesmas cores, cabelo e toucado de cada reino, os mesmos objetos, dantians, aura,
+   anéis, halo, alma, trono e pilar. Para o virar para a esquerda, espelha-se o SVG (transform: scaleX(-1)).
+   As classes (c-corpo, c-respira, c-aura, c-olhos-a/f, c-dan…) são as do avatarM, por isso as animações servem às duas vistas. */
+function corpoPerfilM({id, orla, interior, manto2, pele = '#e2c3a1', peleS = '#c9a483', gola = null, cinto = null}){
+  const gl = gola || orla, ci = cinto || orla;
+  return {
+    pernas: `<path d="M92 300 C90 280 108 266 140 264 L196 266 C222 268 240 280 242 298 C243 312 230 320 200 320 L112 320 C98 320 92 312 92 300Z" fill="${manto2}"/>
+      <path d="M150 294 C176 284 208 286 234 298 M118 304 C140 296 160 296 176 302" stroke="rgba(0,0,0,.2)" stroke-width="1.4" fill="none"/>
+      <path d="M226 284 C234 290 238 296 238 304" stroke="rgba(255,255,255,.14)" stroke-width="1.5" fill="none"/>`,
+    tronco: `<path d="M112 262 C106 226 108 186 120 162 C128 150 142 146 152 146 C164 147 172 156 174 172 C178 196 176 232 172 262Z" fill="url(#${id}gManto)"/>
+      <path d="M152 147 L161 151 L156 166Z" fill="${interior}"/>
+      <path d="M157 150 C161 170 166 192 170 214" stroke="${gl}" stroke-width="5" stroke-linecap="round" fill="none"/>
+      <path d="M109 213 C130 219 156 219 175 213 L176 228 C156 234 130 234 109 228Z" fill="${ci}" opacity=".92"/>`,
+    manga: `<path d="M126 160 C118 186 120 214 128 236 C134 254 150 266 168 268 C180 270 194 266 200 258 L196 249 C182 251 166 245 158 231 C152 213 154 186 152 162 C146 154 132 154 126 160Z" fill="url(#${id}gManto)"/>
+      <path d="M152 162 C154 186 152 213 158 231 C166 245 182 251 196 249" stroke="rgba(0,0,0,.22)" stroke-width="1.8" fill="none"/>
+      <path d="M126 160 C118 186 120 214 128 236" stroke="rgba(255,255,255,.14)" stroke-width="1.5" fill="none"/>
+      <path d="M168 268 C180 270 194 266 200 258" stroke="${orla}" stroke-width="4" fill="none" stroke-linecap="round"/>`,
+    maos: `<ellipse cx="204" cy="256" rx="10" ry="6.5" fill="${pele}"/><path d="M197 253 Q204 248 212 253" stroke="${peleS}" stroke-width="1.2" fill="none"/>`,
+    pescoco: `<path d="M141 122 L141 150 L157 150 L157 124Z" fill="${peleS}"/>`,
+    cabeca: `<path d="M124 108 C124 90 136 82 150 82 C163 82 171 91 172 102 L173 109 L178.5 117 L174 119.5 L173.5 124 C172.5 130 168 134 160 136 C150 138 140 134 134 128 C127 122 124 116 124 108Z" fill="${pele}"/>`,
+    orelha: `<ellipse cx="143" cy="113" rx="4" ry="6.5" fill="${peleS}"/><path d="M142 109.5 Q145.5 113 142 117" stroke="${pele}" stroke-width="1" fill="none"/>`
+  };
+}
+function avatarPerfilM({r: rm = 0, f = 0, fluxo = 0, mini = false, id = 'p', tes = null, desvio = [], obj = null} = {}){
+  const so = k => obj && obj[k] ? {[k]: obj[k]} : null;
+  const r = VIS_M[clampA(rm, 0, 8)], V = VISUAL_C[r], pele = '#e2c3a1', peleS = '#c9a483';
+  const C = corpoPerfilM({id, orla: V.orla, interior: V.interior, manto2: V.manto2, pele, peleS});
+  const auraOp = (.1 + r * .07 + f * .08 + (mini ? 0 : fluxo * .05)).toFixed(2), aneis = Math.max(0, r - 1), flut = r >= 5 ? ' c-flutua' : '';
+  const correntes = mini ? '' : ['M6 110 C70 128 112 190 150 238', 'M294 140 C228 150 192 206 150 238', 'M30 352 C84 310 122 276 150 240', 'M272 352 C218 310 180 276 150 240']
+    .slice(0, fluxo >= 2 ? fluxo : 0).map((d, i) => `<path class="c-corrente" d="${d}" stroke="${V.aura}" stroke-width="${1.2 + fluxo * .5}" style="animation-delay:${-i * .4}s"/>`).join('');
+  // A espada do Qi (Forja) flutua atrás das costas, em vez de atrás do ombro.
+  const espada = objetosM(so('espada'), id, mini).tras.replace('translate(222 132) rotate(28)', 'translate(90 150) rotate(-22)');
+  const halo = r >= 5 ? `<g class="c-halo"><circle cx="150" cy="112" r="40" fill="none" stroke="${V.aura}" stroke-width="2" opacity=".7"/>
+      <circle cx="150" cy="112" r="47" fill="none" stroke="${V.aura}" stroke-width="1" stroke-dasharray="3 7" opacity=".6"/></g>` : '';
+  const alma = r >= 4 ? `<g class="c-alma"><g transform="translate(0 -20)"><circle cx="150" cy="34" r="18" fill="url(#${id}gAura)" opacity=".95"/>
+      <circle cx="150" cy="27" r="4.5" fill="#fff" opacity=".95"/><path d="M150 32 C143 32 140 38 139 44 L161 44 C160 38 157 32 150 32Z" fill="#fff" opacity=".9"/>
+      <path d="M136 46 C140 41 146 41 150 44 C154 41 160 41 164 46" stroke="${V.orla}" stroke-width="1.3" fill="none"/></g></g>` : '';
+  const petala = (dx, dy, esc) => `<path d="M0 0 C-11 -12 -11 -32 0 -46 C11 -32 11 -12 0 0Z" transform="translate(${150 + dx} ${dy}) rotate(${(dx / 120 * 58).toFixed(1)}) scale(${esc})" fill="${V.aura}" fill-opacity=".38" stroke="${V.orla}" stroke-width="1"/>`;
+  const trono = r >= 5 ? `<g class="c-trono" transform="translate(17 0)"><ellipse cx="150" cy="322" rx="126" ry="20" fill="${V.aura}" opacity=".28"/>${[-118, -84, -46, 0, 46, 84, 118].map(dx => petala(dx, 322 - 14 * Math.sqrt(Math.max(0, 1 - (dx / 126) ** 2)), 1.15)).join('')}</g>` : '';
+  const tronoFrente = r >= 5 ? `<g class="c-trono" transform="translate(17 0)">${[-100, -54, 0, 54, 100].map(dx => petala(dx, 336 + 6 * Math.sqrt(Math.max(0, 1 - (dx / 126) ** 2)), .8)).join('')}</g>` : '';
+  const pilar = r >= 6 && !mini ? `<rect class="c-pilar" x="96" y="-400" width="108" height="760" fill="url(#${id}gPilar)"/>` : '';
+  // Cabelo e toucado: os mesmos do avatarM, vistos de lado (o carrapito fica 4 para trás).
+  const toucado = r === 0 ? `<path d="M124.5 100 C137 95 158 94 172 98" stroke="#8a6d4f" stroke-width="5" fill="none" stroke-linecap="round"/><rect x="137" y="63" width="18" height="6" rx="2" fill="#8a6d4f"/>`
+    : `<g transform="translate(-4 -3)">${r === 1 ? `<path d="M132 66 L170 74" stroke="#a87c4f" stroke-width="2.6" stroke-linecap="round"/>`
+    : r <= 3 ? `<path d="M140 66 L160 66 L157 54 L143 54Z" fill="${V.orla}"/><path d="M130 62 L172 62" stroke="${V.orla}" stroke-width="2.2" stroke-linecap="round"/>`
+    : r <= 5 ? `<path d="M139 66 L161 66 L158 52 L142 52Z" fill="${r === 4 ? '#d9d2ee' : V.orla}" stroke="${V.orla}" stroke-width="1"/><circle cx="150" cy="58" r="2.4" fill="${V.aura}"/><path d="M128 62 L174 62" stroke="${V.orla}" stroke-width="2" stroke-linecap="round"/>`
+    : `<path d="M136 66 L164 66 L162 50 L156 56 L150 44 L144 56 L138 50Z" fill="${V.orla}"/><circle cx="150" cy="55" r="2.6" fill="#fff"/>`}</g>`;
+  const madeixas = r === 4 ? `<path d="M137 100 C133 124 131 150 133 190" stroke="#d8d4e6" stroke-width="2" fill="none" opacity=".8"/>` : '';
+  const sobr = V.cabelo === '#e9e6ef' || V.cabelo === '#f2efe8' ? '#bdb7c6' : V.cabelo;
+  const olhos = `<g class="c-olhos-f"><path d="M160 110.5 Q164.5 113.6 169 111" stroke="#3a2a22" stroke-width="1.7" fill="none" stroke-linecap="round"/></g>
+    <g class="c-olhos-a"><path d="M160 110.6 Q165 107.4 169.6 110.6 Q165 113.2 160 110.6Z" fill="${V.aura}"/><circle cx="166" cy="110.4" r="1.1" fill="#fff"/></g>`;
+  const pendente = r >= 2 ? `<path d="M172 229 L172 246" stroke="${V.orla}" stroke-width="1.2"/><circle cx="172" cy="249" r="3.4" fill="${V.aura}"/>` : '';
+  const nucleo = r >= 3 ? `<circle class="c-nucleo" cx="150" cy="238" r="${5 + (r - 3) * 1.2}" fill="#fff6d2" stroke="#f2c35b" stroke-width="1.4"/>` : '';
+  // Objetos: a cabaça (Jing, Garfada) fica na anca de trás; o jade (Nascente) à frente do cinto.
+  const cabaca = objetosM(so('cabaca'), id, mini).frente, jade = objetosM(so('jade'), id, mini).frente;
+  return `<svg class="cultivador perfil r${r}${mini ? ' mini' : ''} f${fluxo}" viewBox="0 0 300 360" aria-hidden="true">
+  <defs>
+    <radialGradient id="${id}gAura" cx=".5" cy=".55" r=".55"><stop offset="0" stop-color="${V.aura}" stop-opacity=".9"/><stop offset=".55" stop-color="${V.aura}" stop-opacity=".25"/><stop offset="1" stop-color="${V.aura}" stop-opacity="0"/></radialGradient>
+    <linearGradient id="${id}gManto" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${V.manto}"/><stop offset="1" stop-color="${V.manto2}"/></linearGradient>
+    <linearGradient id="${id}gPilar" x1="0" x2="1"><stop offset="0" stop-color="${V.aura}" stop-opacity="0"/><stop offset=".5" stop-color="${V.aura}" stop-opacity=".45"/><stop offset="1" stop-color="${V.aura}" stop-opacity="0"/></linearGradient>
+  </defs>
+  ${pilar}
+  <g transform="translate(16 0)"><path class="c-aura" d="M150 ${44 - r * 4} C${204 + r * 4} 62 ${240 + r * 3} 120 ${244 + r * 3} 200 C${248 + r * 3} 262 224 314 150 328 C76 314 ${52 - r * 3} 262 ${56 - r * 3} 200 C${60 - r * 3} 120 ${96 - r * 4} 62 150 ${44 - r * 4}Z" fill="url(#${id}gAura)" opacity="${auraOp}"/></g>
+  <g transform="translate(10 0)">${Array.from({length: aneis}, (_, i) => `<ellipse class="c-anel" cx="150" cy="236" rx="${70 + i * 26}" ry="${18 + i * 7}" fill="none" stroke="${V.aura}" stroke-width="1" opacity="${(.5 - i * .08).toFixed(2)}" style="animation-delay:${-i * .8}s"/>`).join('')}</g>
+  ${correntes}${halo}${espada}
+  <g class="c-corpo${flut}">
+    ${trono}
+    ${C.pernas}${tronoFrente}
+    <g class="c-respira">
+      ${C.tronco}
+      <path d="M126 104 C118 140 114 176 117 206 L130 206 C127 176 129 142 137 114Z" fill="${V.cabelo}"/>${madeixas}
+      ${cabaca}
+      ${C.manga}${C.maos}
+      ${jade ? `<g transform="translate(-10 0)">${jade}</g>` : ''}${pendente}
+      ${nucleo}
+      ${C.pescoco}${C.cabeca}${C.orelha}
+      <path d="M159 104 Q165 101.4 171 103.6" stroke="${sobr}" stroke-width="1.7" fill="none" stroke-linecap="round"/>
+      ${olhos}
+      <path d="M175 119.2 Q173 120.4 172.4 118.6" stroke="${peleS}" stroke-width="1" fill="none"/><path d="M170.4 125.6 L174.4 125.1" stroke="#9a6656" stroke-width="1.3" stroke-linecap="round"/>
+      <path d="M124 112 C119 90 131 75 150 75 C164 75 173 84 173 99 C167 91 159 88 151 89 C145 92 143 101 141 108 C137 113 133 119 131 127 C127 123 125 118 124 112Z" fill="${V.cabelo}"/>
+      <circle cx="146" cy="66" r="11" fill="${V.cabelo}"/>${toucado}
+      ${dantiansM(id, r, tes, desvio, mini)}
+    </g>
+  </g>
+  ${alma}
+</svg>`;
+}
